@@ -1,0 +1,33 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "RainViewer Storm Detector",
+        "description": "Configure the storm detector using RainViewer radar",
+        "data": {
+          "latitude": "Latitude",
+          "longitude": "Longitude",
+          "mqtt_broker": "MQTT Broker (IP or hostname)",
+          "mqtt_port": "MQTT Port",
+          "mqtt_username": "MQTT Username (optional)",
+          "mqtt_password": "MQTT Password (optional)",
+          "scan_interval": "Update interval (seconds)",
+          "zoom": "Radar zoom level",
+          "tile_x": "Radar Tile X",
+          "tile_y": "Radar Tile Y",
+          "rain_threshold": "Rain threshold (pixel fraction)",
+          "hail_threshold": "Hail threshold (pixel fraction)",
+          "dist_threshold": "Alert distance (pixels)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot connect to MQTT broker",
+      "invalid_location": "Invalid latitude or longitude",
+      "unknown": "Unknown error"
+    },
+    "abort": {
+      "already_configured": "RainViewer is already configured"
+    }
+  }
+}

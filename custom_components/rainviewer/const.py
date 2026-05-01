@@ -1,0 +1,55 @@
+"""Constantes para la integración RainViewer Storm Detector."""
+
+DOMAIN = "rainviewer"
+PLATFORMS = ["sensor", "binary_sensor"]
+
+# Config keys
+CONF_MQTT_BROKER = "mqtt_broker"
+CONF_MQTT_PORT = "mqtt_port"
+CONF_MQTT_USERNAME = "mqtt_username"
+CONF_MQTT_PASSWORD = "mqtt_password"
+CONF_SCAN_INTERVAL = "scan_interval"
+CONF_ZOOM = "zoom"
+CONF_TILE_X = "tile_x"
+CONF_TILE_Y = "tile_y"
+CONF_RAIN_THRESHOLD = "rain_threshold"
+CONF_HAIL_THRESHOLD = "hail_threshold"
+CONF_DIST_THRESHOLD = "dist_threshold"
+
+# Defaults
+DEFAULT_MQTT_PORT = 1883
+DEFAULT_SCAN_INTERVAL = 300
+DEFAULT_ZOOM = 7
+DEFAULT_TILE_X = 28
+DEFAULT_TILE_Y = 54
+DEFAULT_RAIN_THRESHOLD = 0.005
+DEFAULT_HAIL_THRESHOLD = 0.001
+DEFAULT_DIST_THRESHOLD = 30
+DEFAULT_FRAMES_N = 6
+
+# RainViewer API
+RAINVIEWER_API = "https://api.rainviewer.com/public/weather-maps.json"
+
+# MQTT Topics
+MQTT_TOPIC_STATUS = "rainviewer/status"
+MQTT_TOPIC_ALERT = "rainviewer/alert"
+
+# Alert levels
+ALERT_NONE = "none"
+ALERT_WATCH = "watch"
+ALERT_WARNING = "warning"
+ALERT_EMERGENCY = "emergency"
+
+ALERT_ICONS = {
+    ALERT_NONE: "mdi:weather-sunny",
+    ALERT_WATCH: "mdi:weather-rainy",
+    ALERT_WARNING: "mdi:weather-pouring",
+    ALERT_EMERGENCY: "mdi:weather-hail",
+}
+
+ALERT_COLORS = {
+    ALERT_NONE: "green",
+    ALERT_WATCH: "yellow",
+    ALERT_WARNING: "orange",
+    ALERT_EMERGENCY: "red",
+}

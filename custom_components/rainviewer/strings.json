@@ -1,0 +1,46 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "RainViewer Storm Detector",
+        "description": "Configura el detector de tormentas con radar RainViewer",
+        "data": {
+          "latitude": "Latitud",
+          "longitude": "Longitud",
+          "mqtt_broker": "Broker MQTT (IP o hostname)",
+          "mqtt_port": "Puerto MQTT",
+          "mqtt_username": "Usuario MQTT (opcional)",
+          "mqtt_password": "Contraseña MQTT (opcional)",
+          "scan_interval": "Intervalo de actualización (segundos)",
+          "zoom": "Nivel de zoom del radar",
+          "tile_x": "Tile X del radar",
+          "tile_y": "Tile Y del radar",
+          "rain_threshold": "Umbral de lluvia (fracción de píxeles)",
+          "hail_threshold": "Umbral de granizo (fracción de píxeles)",
+          "dist_threshold": "Distancia de alerta (píxeles)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "No se puede conectar al broker MQTT",
+      "invalid_location": "Latitud o longitud inválidas",
+      "unknown": "Error desconocido"
+    },
+    "abort": {
+      "already_configured": "RainViewer ya está configurado"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opciones de RainViewer",
+        "data": {
+          "scan_interval": "Intervalo de actualización (segundos)",
+          "rain_threshold": "Umbral de lluvia",
+          "hail_threshold": "Umbral de granizo",
+          "dist_threshold": "Distancia de alerta (píxeles)"
+        }
+      }
+    }
+  }
+}
