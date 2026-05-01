@@ -1,0 +1,17 @@
+{
+  "domain": "rainviewer",
+  "name": "RainViewer Storm Detector",
+  "version": "1.0.0",
+  "documentation": "https://github.com/TU_USUARIO/rainviewer-hacs",
+  "issue_tracker": "https://github.com/TU_USUARIO/rainviewer-hacs/issues",
+  "requirements": [
+    "requests>=2.28.0",
+    "Pillow>=9.0.0",
+    "numpy>=1.23.0",
+    "paho-mqtt>=1.6.0"
+  ],
+  "dependencies": [],
+  "codeowners": ["@TU_USUARIO"],
+  "iot_class": "cloud_polling",
+  "config_flow": true
+}
