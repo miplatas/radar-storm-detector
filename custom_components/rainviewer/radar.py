@@ -253,11 +253,18 @@ def run_analysis(lat, lon, zoom, tile_x, tile_y, frames_n, rain_threshold, hail_
         rain_threshold, hail_threshold, dist_threshold
     )
 
+    # URL e timestamp del último frame analizado
+    last_frame = selected[-1]
+    last_radar_url = f"{host}{last_frame['path']}/256/{zoom}/{tile_x}/{tile_y}/8/1_1.png"
+    last_radar_time = last_frame["time"]
+
     payload = {
         "timestamp": int(time.time()),
         "location":  {"lat": lat, "lon": lon},
         "alert":     alert_level,
         "alert_msg": alert_msg,
+        "last_radar_url":  last_radar_url,
+        "last_radar_time": last_radar_time,
         "current": {
             "rain":  round(rain_now,  5),
             "hail":  round(hail_now,  5),

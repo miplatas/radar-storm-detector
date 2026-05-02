@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timezone
 from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -36,6 +37,8 @@ async def async_setup_entry(
         RainViewerDbzMaxSensor(coordinator, entry),
         RainViewerMovementVxSensor(coordinator, entry),
         RainViewerMovementVySensor(coordinator, entry),
+        RainViewerLastRadarUrlSensor(coordinator, entry),
+        RainViewerLastRadarTimeSensor(coordinator, entry),
     ]
 
     async_add_entities(entities)
@@ -251,3 +254,54 @@ class RainViewerMovementVySensor(RainViewerBaseSensor):
     @property
     def native_value(self):
         return self._data().get("movement", {}).get("vy", 0)
+
+
+class RainViewerLastRadarUrlSensor(RainViewerBaseSensor):
+    """URL del PNG del último frame de radar analizado."""
+
+    def __init__(self, coordinator, entry):
+        super().__init__(coordinator, entry, "last_radar_url", "Last Radar Image URL",
+                         "mdi:radar")
+
+    @property
+    def native_value(self):
+        return self._data().get("last_radar_url")
+
+    @property
+    def extra_state_attributes(self):
+        url = self._data().get("last_radar_url")
+        return {"url": url, "image_url": url}
+
+
+class RainViewerLastRadarTimeSensor(RainViewerBaseSensor):
+    """Timestamp legible del último frame de radar analizado."""
+
+    def __init__(self, coordinator, entry):
+        super().__init__(coordinator, entry, "last_radar_time", "Last Radar Time",
+                         "mdi:clock-outline")
+
+    @property
+    def native_value(self):
+        ts = self._data().get("last_radar_time")
+        if ts is None:
+            return None
+        try:
+            dt = datetime.fromtimestamp(int(ts), tz=timezone.utc)
+            return dt.strftime("%Y-%m-%d %H:%M:%S UTC")
+        except Exception:
+            return str(ts)
+
+    @property
+    def extra_state_attributes(self):
+        ts = self._data().get("last_radar_time")
+        if ts is None:
+            return {}
+        try:
+            dt = datetime.fromtimestamp(int(ts), tz=timezone.utc)
+            return {
+                "unix_timestamp": ts,
+                "iso8601": dt.isoformat(),
+            }
+        except Exception:
+            return {"unix_timestamp": ts}
+
