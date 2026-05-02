@@ -3,108 +3,114 @@
 # 🌧 RainViewer Storm Detector — Home Assistant Integration
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
-[![GitHub release](https://img.shields.io/github/release/TU_USUARIO/rainviewer-hacs.svg)](https://github.com/TU_USUARIO/rainviewer-hacs/releases)
+[![GitHub release](https://img.shields.io/github/release/miplatas/rainviewer-hacs/releases)](https://github.com/miplatas/rainviewer-hacs/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Integración para Home Assistant que detecta condiciones de tormenta usando imágenes de radar de **RainViewer** y publica los datos automáticamente en **MQTT**.
+A Home Assistant integration that detects storm conditions using **RainViewer** radar images and automatically publishes data to **MQTT**.
 
 ---
 
-## ✨ Características
+## ✨ Features
 
-- 📡 Análisis de imágenes de radar en tiempo real (RainViewer API — gratuita)
-- ⚡ Publicación automática en MQTT (`rainviewer/status` y `rainviewer/alert`)
-- 🏠 Sensores automáticos creados en Home Assistant sin configuración de YAML
-- 🔧 Configurable desde la UI (no requiere editar `configuration.yaml`)
-- 🌍 Calcula automáticamente el tile de radar según tu latitud/longitud
-- 📊 12 sensores de estado + 4 sensores binarios
-
----
-
-## 📦 Instalación via HACS
-
-### Método recomendado
-
-1. En Home Assistant, ve a **HACS → Integraciones → ⋮ → Repositorios personalizados**
-2. Agrega la URL: `https://github.com/TU_USUARIO/rainviewer-hacs`
-3. Categoría: **Integración**
-4. Busca **RainViewer Storm Detector** e instala
-5. Reinicia Home Assistant
-
-### Método manual
-
-1. Copia la carpeta `custom_components/rainviewer` a tu directorio `config/custom_components/`
-2. Reinicia Home Assistant
+- 📡 Real-time radar image analysis (RainViewer API — free, no API key required)
+- ⚡ Automatic publishing to MQTT (`rainviewer/status` and `rainviewer/alert`)
+- 🏠 Sensors created automatically in Home Assistant — no YAML needed
+- 🔧 Fully configurable from the UI (no `configuration.yaml` editing required)
+- 🌍 Radar tile calculated automatically from your latitude/longitude
+- 📊 14 state sensors + 4 binary sensors
 
 ---
 
-## ⚙️ Configuración
+## 📦 Installation via HACS
 
-1. Ve a **Configuración → Dispositivos y Servicios → Agregar integración**
-2. Busca **RainViewer Storm Detector**
-3. Completa el formulario:
+### Recommended method
 
-| Campo | Descripción | Default |
+1. In Home Assistant, go to **HACS → Integrations → ⋮ → Custom repositories**
+2. Add the URL: `https://github.com/miplatas/rainviewer-hacs`
+3. Category: **Integration**
+4. Search for **RainViewer Storm Detector** and click **Download**
+5. Restart Home Assistant
+
+### Manual method
+
+1. Copy the `custom_components/rainviewer` folder to your `config/custom_components/` directory
+2. Restart Home Assistant
+
+---
+
+## ⚙️ Configuration
+
+1. Go to **Settings → Devices & Services → Add Integration**
+2. Search for **RainViewer Storm Detector**
+3. Fill in the form:
+
+| Field | Description | Default |
 |---|---|---|
-| Latitud | Latitud de tu ubicación | Ubicación de HA |
-| Longitud | Longitud de tu ubicación | Ubicación de HA |
-| Broker MQTT | IP o hostname del broker | — |
-| Puerto MQTT | Puerto del broker | 1883 |
-| Usuario MQTT | (opcional) | — |
-| Contraseña MQTT | (opcional) | — |
-| Intervalo (seg) | Cada cuánto analizar | 300 |
-| Zoom del radar | Nivel de zoom (6-8) | 7 |
-| Umbral lluvia | Fracción mínima de píxeles | 0.005 |
-| Umbral granizo | Fracción mínima de píxeles | 0.001 |
-| Distancia alerta | Distancia máxima en píxeles | 30 |
+| Latitude | Your location latitude | HA location |
+| Longitude | Your location longitude | HA location |
+| Zoom | Radar zoom level (6–8) | 7 |
+| Tile X | Radar tile X (auto-calculated) | auto |
+| Tile Y | Radar tile Y (auto-calculated) | auto |
+| MQTT Broker | Broker IP or hostname | — |
+| MQTT Port | Broker port | 1883 |
+| MQTT Username | (optional) | — |
+| MQTT Password | (optional) | — |
+| Scan interval (s) | How often to analyze | 300 |
+| Rain threshold | Minimum pixel fraction for rain | 0.005 |
+| Hail threshold | Minimum pixel fraction for hail | 0.001 |
+| Alert distance | Maximum distance in pixels | 30 |
 
 ---
 
-## 🌡 Sensores creados automáticamente
+## 🌡 Sensors created automatically
 
-### Sensores de estado (`sensor.*`)
+### State sensors (`sensor.*`)
 
-| Entidad | Descripción |
+| Entity | Description |
 |---|---|
-| `sensor.rainviewer_alert_level` | Nivel de alerta: `none` / `watch` / `warning` / `emergency` |
-| `sensor.rainviewer_alert_message` | Descripción textual de la alerta |
-| `sensor.rainviewer_rain_coverage` | % de píxeles con lluvia |
-| `sensor.rainviewer_heavy_rain_coverage` | % de píxeles con lluvia intensa |
-| `sensor.rainviewer_hail_coverage` | % de píxeles con granizo |
-| `sensor.rainviewer_rain_trend` | Tendencia de lluvia (+ = aumentando) |
-| `sensor.rainviewer_hail_trend` | Tendencia de granizo |
-| `sensor.rainviewer_storm_distance` | Distancia estimada de la tormenta |
-| `sensor.rainviewer_dbz_mean` | dBZ promedio del último frame |
-| `sensor.rainviewer_dbz_max` | dBZ máximo del último frame |
-| `sensor.rainviewer_storm_movement_x` | Vector de movimiento horizontal |
-| `sensor.rainviewer_storm_movement_y` | Vector de movimiento vertical |
+| `sensor.rainviewer_alert_level` | Alert level: `none` / `watch` / `warning` / `emergency` |
+| `sensor.rainviewer_alert_message` | Human-readable alert description |
+| `sensor.rainviewer_rain_coverage` | % of pixels with rain |
+| `sensor.rainviewer_heavy_rain_coverage` | % of pixels with heavy rain |
+| `sensor.rainviewer_hail_coverage` | % of pixels with hail |
+| `sensor.rainviewer_rain_trend` | Rain trend (positive = increasing) |
+| `sensor.rainviewer_hail_trend` | Hail trend |
+| `sensor.rainviewer_storm_distance` | Estimated storm distance (pixels) |
+| `sensor.rainviewer_dbz_mean` | Mean dBZ of the last frame |
+| `sensor.rainviewer_dbz_max` | Max dBZ of the last frame |
+| `sensor.rainviewer_storm_movement_x` | Horizontal storm movement vector |
+| `sensor.rainviewer_storm_movement_y` | Vertical storm movement vector |
+| `sensor.rainviewer_last_radar_image_url` | PNG URL of the last analyzed radar frame |
+| `sensor.rainviewer_last_radar_time` | Human-readable timestamp of the last radar frame |
 
-### Sensores binarios (`binary_sensor.*`)
+### Binary sensors (`binary_sensor.*`)
 
-| Entidad | Descripción |
+| Entity | Description |
 |---|---|
-| `binary_sensor.rainviewer_rain_detected` | `on` cuando hay lluvia |
-| `binary_sensor.rainviewer_hail_detected` | `on` cuando hay granizo |
-| `binary_sensor.rainviewer_storm_approaching` | `on` cuando la tormenta se acerca |
-| `binary_sensor.rainviewer_emergency_alert` | `on` en emergencia |
+| `binary_sensor.rainviewer_rain_detected` | `on` when rain is detected |
+| `binary_sensor.rainviewer_hail_detected` | `on` when hail is detected |
+| `binary_sensor.rainviewer_storm_approaching` | `on` when storm is approaching |
+| `binary_sensor.rainviewer_emergency_alert` | `on` on emergency alert |
 
 ---
 
-## 📨 Tópicos MQTT
+## 📨 MQTT Topics
 
-| Tópico | Cuándo se publica |
+| Topic | When published |
 |---|---|
-| `rainviewer/status` | Cada ciclo de análisis |
-| `rainviewer/alert` | Solo cuando `alert != "none"` |
+| `rainviewer/status` | Every analysis cycle |
+| `rainviewer/alert` | Only when `alert != "none"` |
 
-### Ejemplo de payload JSON
+### Example JSON payload
 
 ```json
 {
   "timestamp": 1746100000,
   "location": {"lat": 19.4326, "lon": -99.1332},
   "alert": "warning",
-  "alert_msg": "Lluvia intensa aproximándose",
+  "alert_msg": "Heavy rain approaching",
+  "last_radar_url": "https://tilecache.rainviewer.com/.../256/7/28/54/8/1_1.png",
+  "last_radar_time": "2025-05-01 14:30:00 UTC",
   "current": {"rain": 0.012, "hail": 0.002, "heavy": 0.008},
   "trend": {"rain": 0.003, "hail": 0.001},
   "movement": {"vx": -1.2, "vy": 0.8, "distance": 22.5, "approaching": true},
@@ -114,11 +120,11 @@ Integración para Home Assistant que detecta condiciones de tormenta usando imá
 
 ---
 
-## 🔔 Ejemplo de automatización
+## 🔔 Automation example
 
 ```yaml
 automation:
-  - alias: "Alerta de tormenta"
+  - alias: "Storm Alert"
     trigger:
       - platform: state
         entity_id: binary_sensor.rainviewer_emergency_alert
@@ -126,26 +132,26 @@ automation:
     action:
       - service: notify.mobile_app
         data:
-          title: "⚠️ Tormenta"
+          title: "⚠️ Storm Warning"
           message: "{{ states('sensor.rainviewer_alert_message') }}"
 ```
 
 ---
 
-## 📝 Niveles de alerta
+## 📝 Alert levels
 
-| Nivel | Condición |
+| Level | Condition |
 |---|---|
-| `none` | Sin precipitación significativa |
-| `watch` | Lluvia moderada detectada |
-| `warning` | Lluvia intensa o granizo en la región |
-| `emergency` | Granizo o lluvia intensa acercándose |
+| `none` | No significant precipitation |
+| `watch` | Moderate rain detected |
+| `warning` | Heavy rain or hail in the region |
+| `emergency` | Hail or heavy rain approaching your location |
 
 ---
 
-## 🛠 Dependencias
+## 🛠 Dependencies
 
-Las siguientes librerías se instalan automáticamente:
+The following libraries are installed automatically:
 - `requests`
 - `Pillow`
 - `numpy`
@@ -153,6 +159,6 @@ Las siguientes librerías se instalan automáticamente:
 
 ---
 
-## 📄 Licencia
+## 📄 License
 
-MIT License — ver [LICENSE](LICENSE)
+MIT License — see [LICENSE](LICENSE)
