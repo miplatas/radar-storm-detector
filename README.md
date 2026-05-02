@@ -16,8 +16,27 @@ A Home Assistant integration that detects storm conditions using **RainViewer** 
 - ⚡ Automatic publishing to MQTT (`rainviewer/status` and `rainviewer/alert`)
 - 🏠 Sensors created automatically in Home Assistant — no YAML needed
 - 🔧 Fully configurable from the UI (no `configuration.yaml` editing required)
-- 🌍 Radar tile calculated automatically from your latitude/longitude
+- 🌍 Radar tile calculated automatically from XYZ tile format
 - 📊 14 state sensors + 4 binary sensors
+
+## 🌍 XYZ Tile Format
+
+This application utilizes the **XYZ tile format**, more commonly known as the **Slippy Map** coordinate system. It is the standard format used by OpenStreetMap, Google Maps, and most other web mapping platforms.
+
+The structure of the URL always follows this pattern:
+`.../{z}/{x}/{y}.png`
+
+### Example: Northeast Mexico
+**URL:** [https://a.tile.openstreetmap.org/7/28/54.png](https://a.tile.openstreetmap.org/7/28/54.png)
+
+In this specific example (`7/28/54.png`), the coordinates break down as follows:
+
+* **7 (z - Zoom Level):** The level of detail. Zoom level `0` shows the entire world on a single tile, while zoom level `7` shows a regional view (e.g., a country or large state).
+* **28 (x - Column):** The horizontal coordinate. The grid starts at `0` at the western edge of the map (180° W) and increases moving East.
+* **54 (y - Row):** The vertical coordinate. The grid starts at `0` at the northern edge of the map (85.0511° N) and increases moving South.
+
+> [!TIP]
+> Before completing your configuration, please verify that your specific `{z}/{x}/{y}` coordinates reflect the correct location by testing the URL in your browser.
 
 ---
 
