@@ -44,10 +44,13 @@ async def async_setup_entry(
 # Helpers de imagen (corren en executor)
 # ---------------------------------------------------------------------------
 
-def _fetch_image(url: str) -> Image.Image | None:
+def _fetch_image(url: str, is_osm: bool = False) -> Image.Image | None:
     """Descarga una imagen desde una URL y la retorna como PIL Image RGBA."""
+    headers = {}
+    if is_osm:
+        headers["User-Agent"] = "RainViewerHA/1.1 (Home Assistant integration; github.com/miplatas/rainviewer_hacs)"
     try:
-        r = requests.get(url, timeout=10)
+        r = requests.get(url, timeout=10, headers=headers)
         r.raise_for_status()
         return Image.open(io.BytesIO(r.content)).convert("RGBA")
     except Exception as e:
@@ -104,7 +107,7 @@ def _build_composite(
     Retorna bytes PNG.
     """
     # 1. Mapa base
-    base = _fetch_image(osm_url)
+    base = _fetch_image(osm_url, is_osm=True)
     if base is None:
         base = Image.new("RGBA", (tile_size, tile_size), (200, 200, 200, 255))
     else:
