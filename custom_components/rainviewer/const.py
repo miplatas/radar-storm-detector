@@ -1,7 +1,7 @@
 """Constantes para la integración RainViewer Storm Detector."""
 
 DOMAIN = "rainviewer"
-PLATFORMS = ["sensor", "binary_sensor"]
+PLATFORMS = ["sensor", "binary_sensor", "camera"]
 
 # Config keys
 CONF_MQTT_BROKER = "mqtt_broker"

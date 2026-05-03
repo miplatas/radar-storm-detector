@@ -102,6 +102,12 @@ In this specific example (`7/28/54.png`), the coordinates break down as follows:
 | `sensor.rainviewer_last_radar_image_url` | PNG URL of the last analyzed radar frame |
 | `sensor.rainviewer_last_radar_time` | Human-readable timestamp of the last radar frame |
 
+### Camera (`camera.*`)
+
+| Entity | Description |
+|---|---|
+| `camera.rainviewer_radar_image` | Composite image: OSM map + radar overlay + home icon. Keeps a buffer of the last N analyzed frames. |
+
 ### Binary sensors (`binary_sensor.*`)
 
 | Entity | Description |
