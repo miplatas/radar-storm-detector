@@ -2,8 +2,8 @@
   "domain": "rainviewer",
   "name": "RainViewer Storm Detector",
   "version": "1.0.4",
-  "documentation": "https://github.com/TU_USUARIO/rainviewer_hacs",
-  "issue_tracker": "https://github.com/TU_USUARIO/rainviewer_hacs/issues",
+  "documentation": "https://github.com/miplatas/rainviewer_hacs",
+  "issue_tracker": "https://github.com/miplatas/rainviewer_hacs/issues",
   "requirements": [
     "requests>=2.28.0",
     "Pillow>=9.0.0",
