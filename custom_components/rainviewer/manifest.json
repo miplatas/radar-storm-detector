@@ -1,7 +1,7 @@
 {
   "domain": "rainviewer",
   "name": "RainViewer Storm Detector",
-  "version": "1.2.0",
+  "version": "1.2.3",
   "documentation": "https://github.com/miplatas/rainviewer_hacs",
   "issue_tracker": "https://github.com/miplatas/rainviewer_hacs/issues",
   "requirements": [
