@@ -58,14 +58,14 @@ def _fetch_image(url: str, is_osm: bool = False) -> Image.Image | None:
         return None
 
 
-def _draw_home_icon(draw: ImageDraw.ImageDraw, cx: int, cy: int, size: int = 18) -> None:
+def _draw_home_icon(draw: ImageDraw.ImageDraw, cx: int, cy: int, size: int = 10) -> None:
     """Dibuja un círculo rojo centrado en (cx, cy)."""
     r = size // 2
     draw.ellipse(
         [cx - r, cy - r, cx + r, cy + r],
         fill=(220, 30, 30, 230),
         outline=(255, 255, 255, 255),
-        width=2,
+        width=1,
     )
 
 
@@ -102,7 +102,7 @@ def _build_composite(
     draw = ImageDraw.Draw(base)
     cx = tile_size // 2
     cy = tile_size // 2
-    _draw_home_icon(draw, cx, cy, size=20)
+    _draw_home_icon(draw, cx, cy, size=10)
 
     # Exportar PNG
     buf = io.BytesIO()
