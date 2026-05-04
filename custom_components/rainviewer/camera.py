@@ -69,20 +69,42 @@ def _draw_home_icon(draw: ImageDraw.ImageDraw, cx: int, cy: int, size: int = 18)
     )
 
 
+def _lat_lon_to_pixel(lat: float, lon: float, tile_x: int, tile_y: int,
+                      zoom: int, tile_size: int = TILE_SIZE) -> tuple[int, int]:
+    """
+    Calcula la posición en píxeles (px, py) de una coordenada lat/lon
+    dentro del tile (tile_x, tile_y) al nivel de zoom dado.
+    """
+    n = 2 ** zoom
+    # Posición global en píxeles
+    gx = (lon + 180.0) / 360.0 * n * tile_size
+    lat_rad = math.radians(lat)
+    gy = (1.0 - math.asinh(math.tan(lat_rad)) / math.pi) / 2.0 * n * tile_size
+    # Posición relativa dentro del tile
+    px = int(gx - tile_x * tile_size)
+    py = int(gy - tile_y * tile_size)
+    return px, py
+
+
 def _build_composite(
     osm_url: str,
     radar_url: str,
     timestamp: str = "",
     frame_index: int = 0,
     frame_total: int = 1,
+    lat: float = 0.0,
+    lon: float = 0.0,
+    tile_x: int = 0,
+    tile_y: int = 0,
+    zoom: int = 7,
     tile_size: int = TILE_SIZE,
 ) -> bytes | None:
     """
     Construye imagen compuesta:
       1. Capa base: tile OSM
       2. Capa radar: imagen RGBA de RainViewer
-      3. Círculo rojo en el centro (ubicación del usuario)
-      4. HUD: barra de progreso arriba + timestamp abajo
+      3. Círculo rojo en la posición exacta de lat/lon del usuario
+      4. HUD: barra de progreso arriba + timestamp + atribución abajo
     Retorna bytes PNG.
     """
     # 1. Mapa base
@@ -103,9 +125,11 @@ def _build_composite(
 
     draw = ImageDraw.Draw(base, "RGBA")
 
-    # 3. Círculo rojo en el centro
-    cx = tile_size // 2
-    cy = tile_size // 2
+    # 3. Círculo rojo en la posición exacta del usuario
+    cx, cy = _lat_lon_to_pixel(lat, lon, tile_x, tile_y, zoom, tile_size)
+    # Clamp por si cae fuera del tile
+    cx = max(5, min(tile_size - 5, cx))
+    cy = max(5, min(tile_size - 5, cy))
     _draw_home_icon(draw, cx, cy, size=10)
 
     # 4. HUD — barra de progreso (arriba)
@@ -135,7 +159,11 @@ def _build_composite(
         font_attr = font
 
     # Línea 1 — timestamp centrado
-    ts_text = str(timestamp) if timestamp else "—"
+    try:
+        from datetime import datetime, timezone
+        ts_text = datetime.fromtimestamp(int(timestamp), tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    except Exception:
+        ts_text = str(timestamp) if timestamp else "—"
     try:
         bbox = font.getbbox(ts_text)
         tw = bbox[2] - bbox[0]
@@ -296,15 +324,21 @@ class RainViewerCamera(CoordinatorEntity, Camera):
 
         # Generar imagen compuesta en executor y luego reconstruir GIF
         self.hass.async_add_executor_job(
-            self._generate_and_store, osm_url, radar_url, last_time
+            self._generate_and_store, osm_url, radar_url, last_time,
+            config.get("latitude", 0.0), config.get("longitude", 0.0),
+            tile_x, tile_y, zoom,
         )
         super()._handle_coordinator_update()
 
-    def _generate_and_store(self, osm_url: str, radar_url: str, timestamp) -> None:
+    def _generate_and_store(self, osm_url: str, radar_url: str, timestamp,
+                            lat: float = 0.0, lon: float = 0.0,
+                            tile_x: int = 0, tile_y: int = 0, zoom: int = 7) -> None:
         """Genera la imagen compuesta, la agrega al buffer y reconstruye el GIF."""
-        # Imagen base sin HUD (el HUD se agrega por frame al construir el GIF)
-        png_bytes = _build_composite(osm_url, radar_url, timestamp=timestamp,
-                                     frame_index=0, frame_total=1)
+        png_bytes = _build_composite(
+            osm_url, radar_url, timestamp=timestamp,
+            frame_index=0, frame_total=1,
+            lat=lat, lon=lon, tile_x=tile_x, tile_y=tile_y, zoom=zoom,
+        )
         if png_bytes is None:
             return
 
@@ -315,6 +349,11 @@ class RainViewerCamera(CoordinatorEntity, Camera):
                     "radar_url": radar_url,
                     "osm_url":   osm_url,
                     "radar_raw": radar_url,
+                    "lat":       lat,
+                    "lon":       lon,
+                    "tile_x":    tile_x,
+                    "tile_y":    tile_y,
+                    "zoom":      zoom,
                 })
 
             self._current_image = self._build_gif()
@@ -341,6 +380,11 @@ class RainViewerCamera(CoordinatorEntity, Camera):
                 timestamp=f["timestamp"],
                 frame_index=i,
                 frame_total=total,
+                lat=f.get("lat", 0.0),
+                lon=f.get("lon", 0.0),
+                tile_x=f.get("tile_x", 0),
+                tile_y=f.get("tile_y", 0),
+                zoom=f.get("zoom", 7),
             )
             if png is None:
                 continue
@@ -393,7 +437,9 @@ class RainViewerCamera(CoordinatorEntity, Camera):
         osm_url = f"https://a.tile.openstreetmap.org/{zoom}/{tile_x}/{tile_y}.png"
 
         await self.hass.async_add_executor_job(
-            self._generate_and_store, osm_url, radar_url, data.get("last_radar_time")
+            self._generate_and_store, osm_url, radar_url, data.get("last_radar_time"),
+            config.get("latitude", 0.0), config.get("longitude", 0.0),
+            tile_x, tile_y, zoom,
         )
 
         with self._lock:
