@@ -11,7 +11,7 @@ from threading import Lock
 
 import requests
 import numpy as np
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 
 from homeassistant.components.camera import Camera
 from homeassistant.config_entries import ConfigEntry
@@ -58,27 +58,31 @@ def _fetch_image(url: str, is_osm: bool = False) -> Image.Image | None:
         return None
 
 
-def _draw_home_icon(draw: ImageDraw.ImageDraw, cx: int, cy: int, size: int = 10) -> None:
+def _draw_home_icon(draw: ImageDraw.ImageDraw, cx: int, cy: int, size: int = 18) -> None:
     """Dibuja un círculo rojo centrado en (cx, cy)."""
     r = size // 2
     draw.ellipse(
         [cx - r, cy - r, cx + r, cy + r],
         fill=(220, 30, 30, 230),
         outline=(255, 255, 255, 255),
-        width=1,
+        width=2,
     )
 
 
 def _build_composite(
     osm_url: str,
     radar_url: str,
+    timestamp: str = "",
+    frame_index: int = 0,
+    frame_total: int = 1,
     tile_size: int = TILE_SIZE,
 ) -> bytes | None:
     """
     Construye imagen compuesta:
       1. Capa base: tile OSM
-      2. Capa radar: imagen RGBA de RainViewer (transparente donde no llueve)
-      3. Capa ícono: casa en el centro del tile (pixel 128,128)
+      2. Capa radar: imagen RGBA de RainViewer
+      3. Círculo rojo en el centro (ubicación del usuario)
+      4. HUD: barra de progreso arriba + timestamp abajo
     Retorna bytes PNG.
     """
     # 1. Mapa base
@@ -92,17 +96,124 @@ def _build_composite(
     radar = _fetch_image(radar_url)
     if radar is not None:
         radar = radar.resize((tile_size, tile_size)).convert("RGBA")
-        # Mezclar: alpha del radar al 80 % para no tapar todo el mapa
         r, g, b, a = radar.split()
         a = a.point(lambda v: int(v * 0.85))
         radar = Image.merge("RGBA", (r, g, b, a))
         base = Image.alpha_composite(base, radar)
 
-    # Círculo rojo en el centro del tile = ubicación del usuario
-    draw = ImageDraw.Draw(base)
+    draw = ImageDraw.Draw(base, "RGBA")
+
+    # 3. Círculo rojo en el centro
     cx = tile_size // 2
     cy = tile_size // 2
     _draw_home_icon(draw, cx, cy, size=10)
+
+    # 4. HUD — barra de progreso (arriba)
+    bar_h = 6
+    bar_bg_color  = (0, 0, 0, 120)
+    bar_fill_color = (30, 180, 255, 220)
+
+    # fondo oscuro de la barra
+    draw.rectangle([0, 0, tile_size, bar_h + 2], fill=bar_bg_color)
+
+    # relleno proporcional al frame actual
+    if frame_total > 1:
+        fill_w = int(tile_size * (frame_index + 1) / frame_total)
+    else:
+        fill_w = tile_size
+    draw.rectangle([0, 0, fill_w, bar_h], fill=bar_fill_color)
+
+    # 5. HUD — footer (abajo): timestamp + atribución
+    label_h = 30  # dos líneas
+    draw.rectangle([0, tile_size - label_h, tile_size, tile_size], fill=(0, 0, 0, 160))
+
+    try:
+        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 11)
+        font_attr = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 8)
+    except Exception:
+        font = ImageFont.load_default()
+        font_attr = font
+
+    # Línea 1 — timestamp centrado
+    ts_text = str(timestamp) if timestamp else "—"
+    try:
+        bbox = font.getbbox(ts_text)
+        tw = bbox[2] - bbox[0]
+    except Exception:
+        tw = len(ts_text) * 6
+    tx = max(0, (tile_size - tw) // 2)
+    ty = tile_size - label_h + 2
+    draw.text((tx, ty), ts_text, fill=(255, 255, 255, 255), font=font)
+
+    # Línea 2 — atribución
+    attr_text = "Map © OpenStreetMap  |  Radar © RainViewer"
+    try:
+        bbox2 = font_attr.getbbox(attr_text)
+        aw = bbox2[2] - bbox2[0]
+    except Exception:
+        aw = len(attr_text) * 5
+    ax = max(0, (tile_size - aw) // 2)
+    ay = tile_size - label_h + 16
+    draw.text((ax, ay), attr_text, fill=(200, 200, 200, 200), font=font_attr)
+
+    # 6. Leyenda dBZ — franja vertical a la izquierda
+    legend_w = 28          # ancho total de la leyenda
+    legend_x0 = 0
+    bar_x0 = legend_x0 + 2
+    bar_x1 = legend_x0 + 12
+    label_x = bar_x1 + 2
+
+    # Rango dBZ de la leyenda
+    dbz_levels = [
+        (5,  (4,   233, 231)),
+        (10, (1,   159, 244)),
+        (15, (3,   0,   244)),
+        (20, (2,   253, 2)),
+        (25, (1,   197, 1)),
+        (30, (0,   142, 0)),
+        (35, (253, 248, 2)),
+        (40, (229, 188, 0)),
+        (45, (253, 149, 0)),
+        (50, (253, 0,   0)),
+        (55, (212, 0,   0)),
+        (60, (188, 0,   0)),
+        (65, (248, 0,   253)),
+        (70, (152, 84,  198)),
+        (75, (255, 255, 255)),
+    ]
+
+    # Fondo semitransparente de la leyenda
+    draw.rectangle(
+        [legend_x0, bar_h + 2, legend_x0 + legend_w, tile_size - label_h],
+        fill=(0, 0, 0, 140),
+    )
+
+    # Área útil para la barra de colores (entre barra de progreso y timestamp)
+    legend_top    = bar_h + 4
+    legend_bottom = tile_size - 30 - 4  # respetar footer de 30px
+    legend_height = legend_bottom - legend_top
+    n = len(dbz_levels)
+    band_h = legend_height / n
+
+    for i, (dbz_val, (r, g, b)) in enumerate(dbz_levels):
+        y0 = int(legend_top + i * band_h)
+        y1 = int(legend_top + (i + 1) * band_h)
+        draw.rectangle([bar_x0, y0, bar_x1, y1], fill=(r, g, b, 255))
+
+        # Etiqueta numérica cada 2 niveles para no saturar
+        if i % 2 == 0:
+            try:
+                font_sm = ImageFont.truetype(
+                    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 7
+                )
+            except Exception:
+                font_sm = ImageFont.load_default()
+            draw.text(
+                (label_x, y0),
+                str(dbz_val),
+                fill=(255, 255, 255, 230),
+                font=font_sm,
+            )
 
     # Exportar PNG
     buf = io.BytesIO()
@@ -189,46 +300,23 @@ class RainViewerCamera(CoordinatorEntity, Camera):
         )
         super()._handle_coordinator_update()
 
-    def _build_gif(self) -> bytes | None:
-        """Construye un GIF animado con todos los frames del buffer."""
-        frames = list(self._history)
-        if not frames:
-            return None
-
-        pil_frames = [f["pil"] for f in frames]
-        duration = self._gif_speed  # ms por frame
-
-        buf = io.BytesIO()
-        pil_frames[0].save(
-            buf,
-            format="GIF",
-            save_all=True,
-            append_images=pil_frames[1:],
-            loop=0,           # loop infinito
-            duration=duration,
-            optimize=False,
-        )
-        return buf.getvalue()
-
     def _generate_and_store(self, osm_url: str, radar_url: str, timestamp) -> None:
         """Genera la imagen compuesta, la agrega al buffer y reconstruye el GIF."""
-        png_bytes = _build_composite(osm_url, radar_url)
+        # Imagen base sin HUD (el HUD se agrega por frame al construir el GIF)
+        png_bytes = _build_composite(osm_url, radar_url, timestamp=timestamp,
+                                     frame_index=0, frame_total=1)
         if png_bytes is None:
             return
 
-        # Convertir a PIL para el GIF (necesitamos paleta P para GIF)
-        pil_img = Image.open(io.BytesIO(png_bytes)).convert("RGB").convert("P", palette=Image.ADAPTIVE, colors=256)
-
         with self._lock:
-            # Evitar duplicados
             if not self._history or self._history[-1]["radar_url"] != radar_url:
                 self._history.append({
                     "timestamp": timestamp,
                     "radar_url": radar_url,
-                    "pil":       pil_img,
+                    "osm_url":   osm_url,
+                    "radar_raw": radar_url,
                 })
 
-            # Reconstruir GIF con todos los frames acumulados
             self._current_image = self._build_gif()
 
         log.debug(
@@ -236,6 +324,45 @@ class RainViewerCamera(CoordinatorEntity, Camera):
             len(self._history), self._gif_speed,
             len(self._current_image) if self._current_image else 0,
         )
+
+    def _build_gif(self) -> bytes | None:
+        """Construye un GIF animado con HUD por frame (barra de progreso + timestamp)."""
+        frames = list(self._history)
+        if not frames:
+            return None
+
+        total = len(frames)
+        pil_frames = []
+
+        for i, f in enumerate(frames):
+            png = _build_composite(
+                f["osm_url"],
+                f["radar_raw"],
+                timestamp=f["timestamp"],
+                frame_index=i,
+                frame_total=total,
+            )
+            if png is None:
+                continue
+            pil_img = Image.open(io.BytesIO(png)).convert("RGB").convert(
+                "P", palette=Image.ADAPTIVE, colors=256
+            )
+            pil_frames.append(pil_img)
+
+        if not pil_frames:
+            return None
+
+        buf = io.BytesIO()
+        pil_frames[0].save(
+            buf,
+            format="GIF",
+            save_all=True,
+            append_images=pil_frames[1:],
+            loop=0,
+            duration=self._gif_speed,
+            optimize=False,
+        )
+        return buf.getvalue()
 
     def camera_image(self, width: int | None = None, height: int | None = None) -> bytes | None:
         with self._lock:
