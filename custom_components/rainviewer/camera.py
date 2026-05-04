@@ -59,38 +59,13 @@ def _fetch_image(url: str, is_osm: bool = False) -> Image.Image | None:
 
 
 def _draw_home_icon(draw: ImageDraw.ImageDraw, cx: int, cy: int, size: int = 18) -> None:
-    """Dibuja un ícono de casa centrado en (cx, cy)."""
-    h = size
-    w = int(h * 0.85)
-    hw = w // 2
-    roof_h = h // 2
-
-    # Cuerpo de la casa
-    body_top = cy - h // 4
-    body_bottom = cy + h // 2
-    body_left = cx - hw
-    body_right = cx + hw
-    draw.rectangle(
-        [body_left, body_top, body_right, body_bottom],
-        fill=(255, 255, 255, 230),
-        outline=(30, 30, 30, 255),
+    """Dibuja un círculo rojo centrado en (cx, cy)."""
+    r = size // 2
+    draw.ellipse(
+        [cx - r, cy - r, cx + r, cy + r],
+        fill=(220, 30, 30, 230),
+        outline=(255, 255, 255, 255),
         width=2,
-    )
-
-    # Techo (triángulo)
-    roof_apex = (cx, cy - h // 4 - roof_h)
-    roof_left = (cx - hw - 3, body_top)
-    roof_right = (cx + hw + 3, body_top)
-    draw.polygon([roof_apex, roof_left, roof_right], fill=(220, 60, 60, 230), outline=(30, 30, 30, 255))
-
-    # Puerta
-    door_w = max(4, w // 4)
-    door_h = max(6, h // 4)
-    door_left = cx - door_w // 2
-    door_top = body_bottom - door_h
-    draw.rectangle(
-        [door_left, door_top, door_left + door_w, body_bottom],
-        fill=(100, 60, 20, 220),
     )
 
 
@@ -123,13 +98,10 @@ def _build_composite(
         radar = Image.merge("RGBA", (r, g, b, a))
         base = Image.alpha_composite(base, radar)
 
-    # 3. Ícono de casa en el centro
+    # Círculo rojo en el centro del tile = ubicación del usuario
     draw = ImageDraw.Draw(base)
     cx = tile_size // 2
     cy = tile_size // 2
-    # Sombra
-    _draw_home_icon(draw, cx + 2, cy + 2, size=20)
-    # Ícono real
     _draw_home_icon(draw, cx, cy, size=20)
 
     # Exportar PNG
