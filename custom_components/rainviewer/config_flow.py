@@ -19,6 +19,7 @@ from .const import (
     CONF_RAIN_THRESHOLD,
     CONF_HAIL_THRESHOLD,
     CONF_DIST_THRESHOLD,
+    CONF_GIF_SPEED,
     DEFAULT_MQTT_PORT,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_ZOOM,
@@ -27,6 +28,7 @@ from .const import (
     DEFAULT_RAIN_THRESHOLD,
     DEFAULT_HAIL_THRESHOLD,
     DEFAULT_DIST_THRESHOLD,
+    DEFAULT_GIF_SPEED,
 )
 
 
@@ -79,6 +81,7 @@ class RainViewerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             vol.Optional(CONF_RAIN_THRESHOLD, default=DEFAULT_RAIN_THRESHOLD): vol.Coerce(float),
             vol.Optional(CONF_HAIL_THRESHOLD, default=DEFAULT_HAIL_THRESHOLD): vol.Coerce(float),
             vol.Optional(CONF_DIST_THRESHOLD, default=DEFAULT_DIST_THRESHOLD): vol.Coerce(int),
+            vol.Optional(CONF_GIF_SPEED,      default=DEFAULT_GIF_SPEED):      vol.Coerce(int),
         })
 
         return self.async_show_form(
@@ -106,10 +109,11 @@ class RainViewerOptionsFlow(config_entries.OptionsFlow):
         opts = self.config_entry.options or self.config_entry.data
 
         schema = vol.Schema({
-            vol.Optional(CONF_SCAN_INTERVAL, default=opts.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)): vol.Coerce(int),
+            vol.Optional(CONF_SCAN_INTERVAL,  default=opts.get(CONF_SCAN_INTERVAL,  DEFAULT_SCAN_INTERVAL)):  vol.Coerce(int),
             vol.Optional(CONF_RAIN_THRESHOLD, default=opts.get(CONF_RAIN_THRESHOLD, DEFAULT_RAIN_THRESHOLD)): vol.Coerce(float),
             vol.Optional(CONF_HAIL_THRESHOLD, default=opts.get(CONF_HAIL_THRESHOLD, DEFAULT_HAIL_THRESHOLD)): vol.Coerce(float),
             vol.Optional(CONF_DIST_THRESHOLD, default=opts.get(CONF_DIST_THRESHOLD, DEFAULT_DIST_THRESHOLD)): vol.Coerce(int),
+            vol.Optional(CONF_GIF_SPEED,      default=opts.get(CONF_GIF_SPEED,      DEFAULT_GIF_SPEED)):      vol.Coerce(int),
         })
 
         return self.async_show_form(step_id="init", data_schema=schema)

@@ -15,6 +15,7 @@ CONF_TILE_Y = "tile_y"
 CONF_RAIN_THRESHOLD = "rain_threshold"
 CONF_HAIL_THRESHOLD = "hail_threshold"
 CONF_DIST_THRESHOLD = "dist_threshold"
+CONF_GIF_SPEED = "gif_speed"
 
 # Defaults
 DEFAULT_MQTT_PORT = 1883
@@ -26,6 +27,7 @@ DEFAULT_RAIN_THRESHOLD = 0.005
 DEFAULT_HAIL_THRESHOLD = 0.001
 DEFAULT_DIST_THRESHOLD = 30
 DEFAULT_FRAMES_N = 6
+DEFAULT_GIF_SPEED = 500  # milisegundos por frame
 
 # RainViewer API
 RAINVIEWER_API = "https://api.rainviewer.com/public/weather-maps.json"

@@ -19,7 +19,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, DEFAULT_FRAMES_N
+from .const import DOMAIN, DEFAULT_FRAMES_N, DEFAULT_GIF_SPEED
 from .coordinator import RainViewerCoordinator
 
 log = logging.getLogger(__name__)
@@ -157,8 +157,13 @@ class RainViewerCamera(CoordinatorEntity, Camera):
         self._attr_name = "RainViewer Radar Image"
         self._attr_unique_id = f"rainviewer_{entry.entry_id}_camera"
         self._attr_icon = "mdi:radar"
+        self._attr_content_type = "image/gif"
 
-        # Buffer circular de imágenes PNG (bytes)
+        # Velocidad del GIF en ms por frame (configurable por el usuario)
+        config = {**entry.data, **entry.options}
+        self._gif_speed: int = config.get("gif_speed", DEFAULT_GIF_SPEED)
+
+        # Buffer circular de imágenes PIL compuestas (no PNG, para armar el GIF)
         self._history: deque[dict] = deque(maxlen=HISTORY_SIZE)
         self._lock = Lock()
         self._current_image: bytes | None = None
@@ -185,16 +190,20 @@ class RainViewerCamera(CoordinatorEntity, Camera):
         }
 
     def _handle_coordinator_update(self) -> None:
-        """Llamado cuando el coordinador tiene datos nuevos — genera imagen en background."""
+        """Llamado cuando el coordinador tiene datos nuevos — genera GIF en background."""
         data = self.coordinator.data
         if not data:
             return
 
+        # Refrescar gif_speed por si el usuario lo cambió en opciones
+        config = {**self._entry.data, **self._entry.options}
+        self._gif_speed = config.get("gif_speed", DEFAULT_GIF_SPEED)
+
         radar_url = data.get("last_radar_url")
         last_time = data.get("last_radar_time")
-        zoom = self._entry.data.get("zoom", 7)
-        tile_x = self._entry.data.get("tile_x", 28)
-        tile_y = self._entry.data.get("tile_y", 54)
+        zoom = config.get("zoom", 7)
+        tile_x = config.get("tile_x", 28)
+        tile_y = config.get("tile_y", 54)
 
         if not radar_url:
             return
@@ -202,36 +211,61 @@ class RainViewerCamera(CoordinatorEntity, Camera):
         # OSM tile URL
         osm_url = f"https://a.tile.openstreetmap.org/{zoom}/{tile_x}/{tile_y}.png"
 
-        # Generar imagen en executor para no bloquear el event loop
+        # Generar imagen compuesta en executor y luego reconstruir GIF
         self.hass.async_add_executor_job(
             self._generate_and_store, osm_url, radar_url, last_time
         )
         super()._handle_coordinator_update()
 
+    def _build_gif(self) -> bytes | None:
+        """Construye un GIF animado con todos los frames del buffer."""
+        frames = list(self._history)
+        if not frames:
+            return None
+
+        pil_frames = [f["pil"] for f in frames]
+        duration = self._gif_speed  # ms por frame
+
+        buf = io.BytesIO()
+        pil_frames[0].save(
+            buf,
+            format="GIF",
+            save_all=True,
+            append_images=pil_frames[1:],
+            loop=0,           # loop infinito
+            duration=duration,
+            optimize=False,
+        )
+        return buf.getvalue()
+
     def _generate_and_store(self, osm_url: str, radar_url: str, timestamp) -> None:
-        """Genera la imagen compuesta y la almacena en el buffer (corre en thread pool)."""
+        """Genera la imagen compuesta, la agrega al buffer y reconstruye el GIF."""
         png_bytes = _build_composite(osm_url, radar_url)
         if png_bytes is None:
             return
 
+        # Convertir a PIL para el GIF (necesitamos paleta P para GIF)
+        pil_img = Image.open(io.BytesIO(png_bytes)).convert("RGB").convert("P", palette=Image.ADAPTIVE, colors=256)
+
         with self._lock:
-            # Evitar duplicados: solo agregar si la URL es nueva
+            # Evitar duplicados
             if not self._history or self._history[-1]["radar_url"] != radar_url:
                 self._history.append({
                     "timestamp": timestamp,
                     "radar_url": radar_url,
-                    "image":     png_bytes,
+                    "pil":       pil_img,
                 })
-            self._current_image = png_bytes
 
-        log.debug("RainViewer Camera: imagen actualizada (%d bytes)", len(png_bytes))
+            # Reconstruir GIF con todos los frames acumulados
+            self._current_image = self._build_gif()
 
-    def camera_image(
-        self,
-        width: int | None = None,
-        height: int | None = None,
-    ) -> bytes | None:
-        """Retorna la imagen más reciente del buffer."""
+        log.debug(
+            "RainViewer Camera: GIF actualizado — %d frames @ %dms (%d bytes)",
+            len(self._history), self._gif_speed,
+            len(self._current_image) if self._current_image else 0,
+        )
+
+    def camera_image(self, width: int | None = None, height: int | None = None) -> bytes | None:
         with self._lock:
             return self._current_image
 
@@ -240,12 +274,11 @@ class RainViewerCamera(CoordinatorEntity, Camera):
         width: int | None = None,
         height: int | None = None,
     ) -> bytes | None:
-        """Versión async — delega a executor si no hay imagen en caché."""
         with self._lock:
             if self._current_image:
                 return self._current_image
 
-        # Si todavía no hay imagen, intentar generar una inmediatamente
+        # Generar GIF inmediatamente si no hay caché
         data = self.coordinator.data
         if not data:
             return None
@@ -254,16 +287,15 @@ class RainViewerCamera(CoordinatorEntity, Camera):
         if not radar_url:
             return None
 
-        zoom = self._entry.data.get("zoom", 7)
-        tile_x = self._entry.data.get("tile_x", 28)
-        tile_y = self._entry.data.get("tile_y", 54)
+        config = {**self._entry.data, **self._entry.options}
+        zoom   = config.get("zoom",   7)
+        tile_x = config.get("tile_x", 28)
+        tile_y = config.get("tile_y", 54)
         osm_url = f"https://a.tile.openstreetmap.org/{zoom}/{tile_x}/{tile_y}.png"
 
-        png_bytes = await self.hass.async_add_executor_job(
-            _build_composite, osm_url, radar_url
+        await self.hass.async_add_executor_job(
+            self._generate_and_store, osm_url, radar_url, data.get("last_radar_time")
         )
 
         with self._lock:
-            self._current_image = png_bytes
-
-        return png_bytes
+            return self._current_image
