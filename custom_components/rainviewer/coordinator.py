@@ -2,7 +2,6 @@
 
 import logging
 import json
-import time
 from datetime import timedelta
 
 import paho.mqtt.client as mqtt
@@ -75,7 +74,6 @@ class RainViewerCoordinator(DataUpdateCoordinator):
         try:
             client.connect(self.mqtt_broker, self.mqtt_port, keepalive=60)
             client.loop_start()
-            time.sleep(0.5)
             self._mqtt_client = client
         except Exception as e:
             log.error("RainViewer: No se pudo conectar al broker MQTT: %s", e)
