@@ -50,6 +50,11 @@ class RainViewerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Return a valid UTC offset option; fallback to default for legacy values."""
         return tz_value if tz_value in TIMEZONE_OPTIONS else DEFAULT_TIMEZONE
 
+    @staticmethod
+    def _normalize_map_style_option(style_value):
+        """Return a valid map style option; fallback to default for legacy values."""
+        return style_value if style_value in MAP_STYLE_OPTIONS else DEFAULT_MAP_STYLE
+
     async def async_step_user(self, user_input=None):
         errors = {}
 
@@ -130,12 +135,18 @@ class RainViewerOptionsFlow(config_entries.OptionsFlow):
         """Return a valid UTC offset option; fallback to default for legacy values."""
         return tz_value if tz_value in TIMEZONE_OPTIONS else DEFAULT_TIMEZONE
 
+    @staticmethod
+    def _normalize_map_style_option(style_value):
+        """Return a valid map style option; fallback to default for legacy values."""
+        return style_value if style_value in MAP_STYLE_OPTIONS else DEFAULT_MAP_STYLE
+
     async def async_step_init(self, user_input=None):
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
         opts = self.config_entry.options or self.config_entry.data
         current_tz = opts.get(CONF_TIMEZONE, DEFAULT_TIMEZONE)
+        current_map_style = opts.get(CONF_MAP_STYLE, DEFAULT_MAP_STYLE)
 
         schema = vol.Schema({
             vol.Optional(CONF_SCAN_INTERVAL,  default=opts.get(CONF_SCAN_INTERVAL,  DEFAULT_SCAN_INTERVAL)):  vol.Coerce(int),
@@ -143,7 +154,10 @@ class RainViewerOptionsFlow(config_entries.OptionsFlow):
             vol.Optional(CONF_HAIL_THRESHOLD, default=opts.get(CONF_HAIL_THRESHOLD, DEFAULT_HAIL_THRESHOLD)): vol.Coerce(float),
             vol.Optional(CONF_DIST_THRESHOLD, default=opts.get(CONF_DIST_THRESHOLD, DEFAULT_DIST_THRESHOLD)): vol.Coerce(int),
             vol.Optional(CONF_GIF_SPEED,      default=opts.get(CONF_GIF_SPEED,      DEFAULT_GIF_SPEED)):      vol.Coerce(int),
-            vol.Optional(CONF_MAP_STYLE,      default=opts.get(CONF_MAP_STYLE,      DEFAULT_MAP_STYLE)):      vol.In(MAP_STYLE_OPTIONS),
+            vol.Optional(
+                CONF_MAP_STYLE,
+                default=self._normalize_map_style_option(current_map_style),
+            ): vol.In(MAP_STYLE_OPTIONS),
             vol.Optional(
                 CONF_TIMEZONE,
                 default=self._normalize_timezone_option(current_tz),
