@@ -61,7 +61,7 @@ def _build_lut():
     return lut
 
 _LUT = _build_lut()
-_LUT_RGB = np.array([(r, g, b) for r, g, b, _ in _LUT], dtype=np.int32)
+_LUT_RGB = np.array([(r, g, b) for r, g, b, _ in _LUT], dtype=np.int16)
 _LUT_DBZ = np.array([dbz for _, _, _, dbz in _LUT], dtype=np.float32)
 
 
@@ -125,11 +125,11 @@ def classify(r, g, b, a):
 def load_image(url):
     """Downloads a radar image and returns it as an RGBA numpy array."""
     try:
-        r = requests.get(url, timeout=10)
-        r.raise_for_status()
-        img = Image.open(BytesIO(r.content)).convert("RGBA")
-        arr = np.array(img)
-        img.close()  # release PIL image immediately
+        with requests.get(url, timeout=10) as r:
+            r.raise_for_status()
+            content = r.content
+        with Image.open(BytesIO(content)) as img:
+            arr = np.array(img.convert("RGBA"))
         return arr
     except Exception as e:
         log.warning("Could not load image: %s -> %s", url, e)
@@ -176,7 +176,7 @@ def analyze_frame(img: np.ndarray, home_px: tuple = (128, 128)):
     h, w, _ = img.shape
     total = h * w
 
-    rgba = img.astype(np.int32, copy=False)
+    rgba = img.astype(np.int16, copy=False)
     r = rgba[:, :, 0]
     g = rgba[:, :, 1]
     b = rgba[:, :, 2]
@@ -192,7 +192,7 @@ def analyze_frame(img: np.ndarray, home_px: tuple = (128, 128)):
     valid_sat = sat >= SATURATION_MIN
 
     diff    = rgb[:, :, None, :] - _LUT_RGB[None, None, :, :]
-    dist    = np.sum(diff * diff, axis=3, dtype=np.int64)
+    dist    = np.sum(diff * diff, axis=3, dtype=np.int32)
     lut_idx = np.argmin(dist, axis=2)
     min_dist = np.min(dist, axis=2)
     z = _LUT_DBZ[lut_idx]
@@ -258,7 +258,7 @@ def build_dbz_array(img: np.ndarray) -> np.ndarray | None:
         return None
 
     h, w, _ = img.shape
-    rgba = img.astype(np.int32, copy=False)
+    rgba = img.astype(np.int16, copy=False)
     r = rgba[:, :, 0]
     g = rgba[:, :, 1]
     b = rgba[:, :, 2]
@@ -273,7 +273,7 @@ def build_dbz_array(img: np.ndarray) -> np.ndarray | None:
     valid_sat = sat >= SATURATION_MIN
 
     diff     = rgb[:, :, None, :] - _LUT_RGB[None, None, :, :]
-    dist     = np.sum(diff * diff, axis=3, dtype=np.int64)
+    dist     = np.sum(diff * diff, axis=3, dtype=np.int32)
     lut_idx  = np.argmin(dist, axis=2)
     min_dist = np.min(dist, axis=2)
     z = _LUT_DBZ[lut_idx]
@@ -335,7 +335,9 @@ def run_analysis(lat, lon, zoom, tile_x, tile_y, frames_n,
     Returns (payload, alert_level) or None on failure.
     """
     try:
-        data = requests.get(RAINVIEWER_API, timeout=10).json()
+        with requests.get(RAINVIEWER_API, timeout=10) as resp:
+            resp.raise_for_status()
+            data = resp.json()
     except Exception as e:
         log.error("Error fetching RainViewer API: %s", e)
         return None

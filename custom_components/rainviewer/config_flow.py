@@ -96,14 +96,14 @@ class RainViewerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             vol.Required(CONF_TILE_X,  default=suggested_x):    vol.Coerce(int),
             vol.Required(CONF_TILE_Y,  default=suggested_y):    vol.Coerce(int),
             vol.Required(CONF_MQTT_BROKER, default=""):    str,
-            vol.Optional(CONF_MQTT_PORT,    default=DEFAULT_MQTT_PORT):    vol.Coerce(int),
+            vol.Optional(CONF_MQTT_PORT,    default=DEFAULT_MQTT_PORT):    vol.All(vol.Coerce(int), vol.Range(min=1, max=65535)),
             vol.Optional(CONF_MQTT_USERNAME, default=""):  str,
             vol.Optional(CONF_MQTT_PASSWORD, default=""):  str,
-            vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): vol.Coerce(int),
-            vol.Optional(CONF_RAIN_THRESHOLD, default=DEFAULT_RAIN_THRESHOLD): vol.Coerce(float),
-            vol.Optional(CONF_HAIL_THRESHOLD, default=DEFAULT_HAIL_THRESHOLD): vol.Coerce(float),
-            vol.Optional(CONF_DIST_THRESHOLD, default=DEFAULT_DIST_THRESHOLD): vol.Coerce(int),
-            vol.Optional(CONF_GIF_SPEED,      default=DEFAULT_GIF_SPEED):      vol.Coerce(int),
+            vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): vol.All(vol.Coerce(int), vol.Range(min=30, max=3600)),
+            vol.Optional(CONF_RAIN_THRESHOLD, default=DEFAULT_RAIN_THRESHOLD): vol.All(vol.Coerce(float), vol.Range(min=0.0, max=1.0)),
+            vol.Optional(CONF_HAIL_THRESHOLD, default=DEFAULT_HAIL_THRESHOLD): vol.All(vol.Coerce(float), vol.Range(min=0.0, max=1.0)),
+            vol.Optional(CONF_DIST_THRESHOLD, default=DEFAULT_DIST_THRESHOLD): vol.All(vol.Coerce(int), vol.Range(min=1, max=1000)),
+            vol.Optional(CONF_GIF_SPEED,      default=DEFAULT_GIF_SPEED):      vol.All(vol.Coerce(int), vol.Range(min=100, max=5000)),
             vol.Optional(CONF_MAP_STYLE,      default=DEFAULT_MAP_STYLE):      vol.In(MAP_STYLE_OPTIONS),
             vol.Optional(
                 CONF_TIMEZONE,
@@ -194,23 +194,23 @@ class RainViewerOptionsFlow(config_entries.OptionsFlow):
                 vol.Optional(
                     CONF_SCAN_INTERVAL,
                     default=self._normalize_int(current_scan_interval, DEFAULT_SCAN_INTERVAL),
-                ): vol.Coerce(int),
+                ): vol.All(vol.Coerce(int), vol.Range(min=30, max=3600)),
                 vol.Optional(
                     CONF_RAIN_THRESHOLD,
                     default=self._normalize_float(current_rain_threshold, DEFAULT_RAIN_THRESHOLD),
-                ): vol.Coerce(float),
+                ): vol.All(vol.Coerce(float), vol.Range(min=0.0, max=1.0)),
                 vol.Optional(
                     CONF_HAIL_THRESHOLD,
                     default=self._normalize_float(current_hail_threshold, DEFAULT_HAIL_THRESHOLD),
-                ): vol.Coerce(float),
+                ): vol.All(vol.Coerce(float), vol.Range(min=0.0, max=1.0)),
                 vol.Optional(
                     CONF_DIST_THRESHOLD,
                     default=self._normalize_int(current_dist_threshold, DEFAULT_DIST_THRESHOLD),
-                ): vol.Coerce(int),
+                ): vol.All(vol.Coerce(int), vol.Range(min=1, max=1000)),
                 vol.Optional(
                     CONF_GIF_SPEED,
                     default=self._normalize_int(current_gif_speed, DEFAULT_GIF_SPEED),
-                ): vol.Coerce(int),
+                ): vol.All(vol.Coerce(int), vol.Range(min=100, max=5000)),
                 vol.Optional(
                     CONF_MAP_STYLE,
                     default=self._normalize_map_style_option(current_map_style),
@@ -230,11 +230,11 @@ class RainViewerOptionsFlow(config_entries.OptionsFlow):
         except Exception:
             log.exception("RainViewer options flow: failed to build schema, using safe defaults")
             schema = vol.Schema({
-                vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): vol.Coerce(int),
-                vol.Optional(CONF_RAIN_THRESHOLD, default=DEFAULT_RAIN_THRESHOLD): vol.Coerce(float),
-                vol.Optional(CONF_HAIL_THRESHOLD, default=DEFAULT_HAIL_THRESHOLD): vol.Coerce(float),
-                vol.Optional(CONF_DIST_THRESHOLD, default=DEFAULT_DIST_THRESHOLD): vol.Coerce(int),
-                vol.Optional(CONF_GIF_SPEED, default=DEFAULT_GIF_SPEED): vol.Coerce(int),
+                vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): vol.All(vol.Coerce(int), vol.Range(min=30, max=3600)),
+                vol.Optional(CONF_RAIN_THRESHOLD, default=DEFAULT_RAIN_THRESHOLD): vol.All(vol.Coerce(float), vol.Range(min=0.0, max=1.0)),
+                vol.Optional(CONF_HAIL_THRESHOLD, default=DEFAULT_HAIL_THRESHOLD): vol.All(vol.Coerce(float), vol.Range(min=0.0, max=1.0)),
+                vol.Optional(CONF_DIST_THRESHOLD, default=DEFAULT_DIST_THRESHOLD): vol.All(vol.Coerce(int), vol.Range(min=1, max=1000)),
+                vol.Optional(CONF_GIF_SPEED, default=DEFAULT_GIF_SPEED): vol.All(vol.Coerce(int), vol.Range(min=100, max=5000)),
                 vol.Optional(CONF_MAP_STYLE, default=DEFAULT_MAP_STYLE): vol.In(MAP_STYLE_OPTIONS),
                 vol.Optional(CONF_TIMEZONE, default=DEFAULT_TIMEZONE): vol.In(TIMEZONE_OPTIONS),
                 vol.Optional(

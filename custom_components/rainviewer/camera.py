@@ -5,9 +5,12 @@ from __future__ import annotations
 import io
 import logging
 import math
-from collections import deque
+from collections import deque, OrderedDict
 from datetime import datetime, timezone
+from datetime import timedelta
 from threading import Lock
+import re
+from zoneinfo import ZoneInfo
 
 import requests
 from PIL import Image, ImageDraw, ImageFont
@@ -23,6 +26,7 @@ from .const import (
     DEFAULT_FRAMES_N,
     DEFAULT_GIF_SPEED,
     CONF_MAP_STYLE,
+    CONF_TIMEZONE,
     DEFAULT_MAP_STYLE,
     MAP_TILE_URLS,
     CONF_TEST_DRAW_PROXIMITY_CIRCLES,
@@ -35,6 +39,10 @@ log = logging.getLogger(__name__)
 
 HISTORY_SIZE = DEFAULT_FRAMES_N
 TILE_SIZE = 256
+IMAGE_CACHE_MAX_ITEMS = 24
+
+_IMAGE_CACHE_LOCK = Lock()
+_IMAGE_BYTES_CACHE: OrderedDict[str, bytes] = OrderedDict()
 
 _DBZ_LEVELS = [
     (5,  (4,   233, 231)),
@@ -83,15 +91,36 @@ async def async_setup_entry(
 # ---------------------------------------------------------------------------
 
 def _fetch_image(url: str, is_osm: bool = False) -> Image.Image | None:
+    with _IMAGE_CACHE_LOCK:
+        cached = _IMAGE_BYTES_CACHE.get(url)
+        if cached is not None:
+            _IMAGE_BYTES_CACHE.move_to_end(url)
+
     headers = {}
     if is_osm:
         headers["User-Agent"] = "RainViewerHA/1.2 (Home Assistant; github.com/miplatas/rainviewer_hacs)"
+
+    content = cached
+    if content is None:
+        try:
+            with requests.get(url, timeout=10, headers=headers) as r:
+                r.raise_for_status()
+                content = r.content
+        except Exception as e:
+            log.warning("Could not load image: %s -> %s", url, e)
+            return None
+
+        with _IMAGE_CACHE_LOCK:
+            _IMAGE_BYTES_CACHE[url] = content
+            _IMAGE_BYTES_CACHE.move_to_end(url)
+            while len(_IMAGE_BYTES_CACHE) > IMAGE_CACHE_MAX_ITEMS:
+                _IMAGE_BYTES_CACHE.popitem(last=False)
+
     try:
-        r = requests.get(url, timeout=10, headers=headers)
-        r.raise_for_status()
-        return Image.open(io.BytesIO(r.content)).convert("RGBA")
+        with Image.open(io.BytesIO(content)) as img:
+            return img.convert("RGBA")
     except Exception as e:
-        log.warning("Could not load image: %s -> %s", url, e)
+        log.warning("Could not decode image: %s -> %s", url, e)
         return None
 
 
@@ -104,6 +133,28 @@ def _lat_lon_to_pixel(lat: float, lon: float, tile_x: int, tile_y: int,
     px = int(gx - tile_x * tile_size)
     py = int(gy - tile_y * tile_size)
     return px, py
+
+
+def _resolve_timezone(tz_name: str | None):
+    if tz_name:
+        match = re.fullmatch(r"GMT\s*([+-])\s*(\d{1,2})", tz_name)
+        if match:
+            sign, hours = match.groups()
+            offset_hours = int(hours) * (1 if sign == "+" else -1)
+            return timezone(timedelta(hours=offset_hours)), f"GMT {offset_hours:+d}"
+
+        match = re.fullmatch(r"UTC([+-])(\d{2}):00", tz_name)
+        if match:
+            sign, hours = match.groups()
+            offset_hours = int(hours) * (1 if sign == "+" else -1)
+            return timezone(timedelta(hours=offset_hours)), f"GMT {offset_hours:+d}"
+
+        try:
+            return ZoneInfo(tz_name), tz_name
+        except Exception:
+            pass
+
+    return timezone.utc, "UTC"
 
 
 def _build_base_image(osm_url: str, radar_url: str,
@@ -147,6 +198,8 @@ def _apply_hud(base_rgb: Image.Image, timestamp,
                dist_mean: float | None = None,
                dist_max: float | None = None,
                bearing_mean: float | None = None,
+               target_tz=timezone.utc,
+               tz_label: str = "UTC",
                tile_size: int = TILE_SIZE) -> Image.Image:
     """
     Applies HUD (progress bar + dBZ legend + footer) over a copy of base_rgb.
@@ -167,7 +220,8 @@ def _apply_hud(base_rgb: Image.Image, timestamp,
     draw.rectangle([0, tile_size - footer_h, tile_size, tile_size], fill=(0, 0, 0, 160))
 
     try:
-        ts_text = datetime.fromtimestamp(int(timestamp), tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        dt = datetime.fromtimestamp(int(timestamp), tz=timezone.utc).astimezone(target_tz)
+        ts_text = dt.strftime(f"%Y-%m-%d %H:%M {tz_label}")
     except Exception:
         ts_text = str(timestamp) if timestamp else "—"
     try:
@@ -258,6 +312,11 @@ class RainViewerCamera(CoordinatorEntity, Camera):
         self._history: deque[dict] = deque(maxlen=HISTORY_SIZE)
         self._lock = Lock()
         self._current_image: bytes | None = None
+        self._last_render_url: str | None = None
+        self._last_render_cycle_ts: int | None = None
+        self._job_running = False
+        self._target_tz = timezone.utc
+        self._tz_label = "UTC"
 
     @property
     def device_info(self):
@@ -296,11 +355,22 @@ class RainViewerCamera(CoordinatorEntity, Camera):
         if not radar_url:
             return
 
+        with self._lock:
+            if self._job_running:
+                super()._handle_coordinator_update()
+                return
+
         zoom   = config.get("zoom",      7)
         tile_x = config.get("tile_x",   28)
         tile_y = config.get("tile_y",   54)
         lat    = config.get("latitude",  0.0)
         lon    = config.get("longitude", 0.0)
+        cycle_ts = data.get("timestamp")
+        tz_name = config.get(CONF_TIMEZONE) or getattr(self.hass.config, "time_zone", None)
+        resolved_tz, tz_label = _resolve_timezone(tz_name)
+        with self._lock:
+            self._target_tz = resolved_tz
+            self._tz_label = tz_label
         map_style = config.get(CONF_MAP_STYLE, DEFAULT_MAP_STYLE)
         osm_url = MAP_TILE_URLS.get(map_style, MAP_TILE_URLS["day"]).format(
             zoom=zoom, x=tile_x, y=tile_y
@@ -316,11 +386,27 @@ class RainViewerCamera(CoordinatorEntity, Camera):
                 "bearing_mean": fr.get("bearing_mean"),
             }
 
-        self.hass.async_add_executor_job(
-            self._fetch_and_store,
-            osm_url, radar_url, last_time, lat, lon, tile_x, tile_y, zoom,
-            home_px, frame_meta,
-        )
+        with self._lock:
+            if cycle_ts == self._last_render_cycle_ts and self._current_image is not None:
+                super()._handle_coordinator_update()
+                return
+            self._job_running = True
+
+        async def _run_job() -> None:
+            try:
+                await self.hass.async_add_executor_job(
+                    self._fetch_and_store,
+                    osm_url, radar_url, last_time, lat, lon, tile_x, tile_y, zoom,
+                    home_px, frame_meta,
+                )
+                with self._lock:
+                    self._last_render_url = radar_url
+                    self._last_render_cycle_ts = cycle_ts
+            finally:
+                with self._lock:
+                    self._job_running = False
+
+        self.hass.async_create_task(_run_job())
         super()._handle_coordinator_update()
 
     def _fetch_and_store(self, osm_url: str, radar_url: str, timestamp,
@@ -368,6 +454,9 @@ class RainViewerCamera(CoordinatorEntity, Camera):
 
         total = len(frames)
         pil_frames = []
+        with self._lock:
+            target_tz = self._target_tz
+            tz_label = self._tz_label
 
         for i, f in enumerate(frames):
             base = f.get("base_image")
@@ -384,6 +473,8 @@ class RainViewerCamera(CoordinatorEntity, Camera):
                 dist_mean=meta.get("dist_mean"),
                 dist_max=meta.get("dist_max"),
                 bearing_mean=meta.get("bearing_mean"),
+                target_tz=target_tz,
+                tz_label=tz_label,
             )
             pil_frames.append(framed.convert("P", palette=Image.ADAPTIVE, colors=256))
             framed.close()
@@ -415,6 +506,8 @@ class RainViewerCamera(CoordinatorEntity, Camera):
         with self._lock:
             if self._current_image:
                 return self._current_image
+            if self._job_running:
+                return None
 
         data = self.coordinator.data
         if not data:
@@ -434,20 +527,29 @@ class RainViewerCamera(CoordinatorEntity, Camera):
             zoom=zoom, x=tile_x, y=tile_y
         )
 
-        await self.hass.async_add_executor_job(
-            self._fetch_and_store,
-            osm_url, radar_url, data.get("last_radar_time"),
-            lat, lon, tile_x, tile_y, zoom,
-            _lat_lon_to_pixel(lat, lon, tile_x, tile_y, zoom),
-            {
-                fr.get("timestamp"): {
-                    "dist_mean": fr.get("dist_mean"),
-                    "dist_max": fr.get("dist_max"),
-                    "bearing_mean": fr.get("bearing_mean"),
-                }
-                for fr in data.get("frames", [])
-            },
-        )
+        with self._lock:
+            self._job_running = True
+        try:
+            await self.hass.async_add_executor_job(
+                self._fetch_and_store,
+                osm_url, radar_url, data.get("last_radar_time"),
+                lat, lon, tile_x, tile_y, zoom,
+                _lat_lon_to_pixel(lat, lon, tile_x, tile_y, zoom),
+                {
+                    fr.get("timestamp"): {
+                        "dist_mean": fr.get("dist_mean"),
+                        "dist_max": fr.get("dist_max"),
+                        "bearing_mean": fr.get("bearing_mean"),
+                    }
+                    for fr in data.get("frames", [])
+                },
+            )
+            with self._lock:
+                self._last_render_url = radar_url
+                self._last_render_cycle_ts = data.get("timestamp")
+        finally:
+            with self._lock:
+                self._job_running = False
 
         with self._lock:
             return self._current_image
@@ -462,6 +564,9 @@ class RainViewerCamera(CoordinatorEntity, Camera):
                     pass
             self._history.clear()
             self._current_image = None
+            self._last_render_url = None
+            self._last_render_cycle_ts = None
+            self._job_running = False
 
 
 # ---------------------------------------------------------------------------
@@ -528,6 +633,7 @@ class RainViewerColorScaleCamera(CoordinatorEntity, Camera):
         self._lock = Lock()
         self._current_image: bytes | None = None
         self._last_url: str | None = None
+        self._job_running = False
 
     @property
     def device_info(self):
@@ -547,8 +653,22 @@ class RainViewerColorScaleCamera(CoordinatorEntity, Camera):
         if not radar_url or radar_url == self._last_url:
             super()._handle_coordinator_update()
             return
+        with self._lock:
+            if self._job_running:
+                super()._handle_coordinator_update()
+                return
         self._last_url = radar_url
-        self.hass.async_add_executor_job(self._fetch_and_render, radar_url)
+        with self._lock:
+            self._job_running = True
+
+        async def _run_job() -> None:
+            try:
+                await self.hass.async_add_executor_job(self._fetch_and_render, radar_url)
+            finally:
+                with self._lock:
+                    self._job_running = False
+
+        self.hass.async_create_task(_run_job())
         super()._handle_coordinator_update()
 
     def _fetch_and_render(self, radar_url: str) -> None:
@@ -571,13 +691,21 @@ class RainViewerColorScaleCamera(CoordinatorEntity, Camera):
         with self._lock:
             if self._current_image:
                 return self._current_image
+            if self._job_running:
+                return None
         data = self.coordinator.data
         if not data:
             return None
         radar_url = data.get("last_radar_url")
         if not radar_url:
             return None
-        await self.hass.async_add_executor_job(self._fetch_and_render, radar_url)
+        with self._lock:
+            self._job_running = True
+        try:
+            await self.hass.async_add_executor_job(self._fetch_and_render, radar_url)
+        finally:
+            with self._lock:
+                self._job_running = False
         with self._lock:
             return self._current_image
 
@@ -603,6 +731,7 @@ class RainViewerDbzGrayCamera(CoordinatorEntity, Camera):
         self._lock = Lock()
         self._current_image: bytes | None = None
         self._last_url: str | None = None
+        self._job_running = False
 
     @property
     def device_info(self):
@@ -622,8 +751,22 @@ class RainViewerDbzGrayCamera(CoordinatorEntity, Camera):
         if not radar_url or radar_url == self._last_url:
             super()._handle_coordinator_update()
             return
+        with self._lock:
+            if self._job_running:
+                super()._handle_coordinator_update()
+                return
         self._last_url = radar_url
-        self.hass.async_add_executor_job(self._fetch_and_render, radar_url)
+        with self._lock:
+            self._job_running = True
+
+        async def _run_job() -> None:
+            try:
+                await self.hass.async_add_executor_job(self._fetch_and_render, radar_url)
+            finally:
+                with self._lock:
+                    self._job_running = False
+
+        self.hass.async_create_task(_run_job())
         super()._handle_coordinator_update()
 
     def _fetch_and_render(self, radar_url: str) -> None:
@@ -660,12 +803,20 @@ class RainViewerDbzGrayCamera(CoordinatorEntity, Camera):
         with self._lock:
             if self._current_image:
                 return self._current_image
+            if self._job_running:
+                return None
         data = self.coordinator.data
         if not data:
             return None
         radar_url = data.get("last_radar_url")
         if not radar_url:
             return None
-        await self.hass.async_add_executor_job(self._fetch_and_render, radar_url)
+        with self._lock:
+            self._job_running = True
+        try:
+            await self.hass.async_add_executor_job(self._fetch_and_render, radar_url)
+        finally:
+            with self._lock:
+                self._job_running = False
         with self._lock:
             return self._current_image
