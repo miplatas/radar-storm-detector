@@ -1,4 +1,4 @@
-"""Integración RainViewer Storm Detector para Home Assistant."""
+"""RainViewer Storm Detector integration for Home Assistant."""
 
 import logging
 from homeassistant.config_entries import ConfigEntry
@@ -12,10 +12,10 @@ log = logging.getLogger(__name__)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Configura la integración desde un config entry."""
+    """Set up the integration from a config entry."""
     hass.data.setdefault(DOMAIN, {})
 
-    # Combinar data + options (options sobrescriben data si existen)
+    # Merge data + options (options override data when present).
     config = {**entry.data, **entry.options}
     config["latitude"]  = entry.data[CONF_LATITUDE]
     config["longitude"] = entry.data[CONF_LONGITUDE]
@@ -27,16 +27,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    # Listener para recargar si cambian las opciones
+    # Listener to reload when options change.
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
 
-    log.info("RainViewer Storm Detector iniciado para (%.4f, %.4f)",
+    log.info("RainViewer Storm Detector started for (%.4f, %.4f)",
              config["latitude"], config["longitude"])
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Descarga la integración."""
+    """Unload the integration."""
     coordinator: RainViewerCoordinator = hass.data[DOMAIN].get(entry.entry_id)
     if coordinator:
         await coordinator.async_shutdown()
@@ -49,6 +49,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Recarga la integración cuando cambian las opciones."""
+    """Reload the integration when options change."""
     await async_unload_entry(hass, entry)
     await async_setup_entry(hass, entry)

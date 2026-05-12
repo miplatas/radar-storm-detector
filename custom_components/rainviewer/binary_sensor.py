@@ -1,4 +1,4 @@
-"""Sensores binarios de RainViewer Storm Detector para Home Assistant."""
+"""RainViewer Storm Detector binary sensors for Home Assistant."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Crea sensores binarios automáticamente."""
+    """Create binary sensors automatically."""
     coordinator: RainViewerCoordinator = hass.data[DOMAIN][entry.entry_id]
 
     async_add_entities([
@@ -35,11 +35,11 @@ async def async_setup_entry(
 
 
 class RainViewerBaseBinary(CoordinatorEntity, BinarySensorEntity):
-    """Base para sensores binarios."""
+    """Base class for binary sensors."""
 
     def __init__(self, coordinator, entry, key, name, icon, device_class=None):
         super().__init__(coordinator)
-        self._attr_name = f"RainViewer {name}"
+        self._attr_name = name
         self._attr_unique_id = f"rainviewer_{entry.entry_id}_{key}"
         self._attr_icon = icon
         self._attr_device_class = device_class
@@ -49,7 +49,7 @@ class RainViewerBaseBinary(CoordinatorEntity, BinarySensorEntity):
     def device_info(self):
         return {
             "identifiers": {(DOMAIN, self._entry.entry_id)},
-            "name": "RainViewer Storm Detector",
+            "name": "Storm Detector",
             "manufacturer": "RainViewer",
             "model": "Radar Storm Detector",
             "entry_type": "service",
@@ -60,7 +60,7 @@ class RainViewerBaseBinary(CoordinatorEntity, BinarySensorEntity):
 
 
 class RainViewerRainBinarySensor(RainViewerBaseBinary):
-    """True cuando hay lluvia detectada."""
+    """True when rain is detected."""
 
     def __init__(self, coordinator, entry):
         super().__init__(coordinator, entry, "rain_detected", "Rain Detected",
@@ -73,7 +73,7 @@ class RainViewerRainBinarySensor(RainViewerBaseBinary):
 
 
 class RainViewerHailBinarySensor(RainViewerBaseBinary):
-    """True cuando hay granizo detectado."""
+    """True when hail is detected."""
 
     def __init__(self, coordinator, entry):
         super().__init__(coordinator, entry, "hail_detected", "Hail Detected",
@@ -94,7 +94,7 @@ class RainViewerHailBinarySensor(RainViewerBaseBinary):
 
 
 class RainViewerStormApproachingSensor(RainViewerBaseBinary):
-    """True cuando la tormenta se está aproximando."""
+    """True when the storm is approaching."""
 
     def __init__(self, coordinator, entry):
         super().__init__(coordinator, entry, "approaching", "Storm Approaching",
@@ -102,11 +102,11 @@ class RainViewerStormApproachingSensor(RainViewerBaseBinary):
 
     @property
     def is_on(self):
-        return self._data().get("movement", {}).get("approaching", False)
+        return self._data().get("proximity", {}).get("approaching", False)
 
 
 class RainViewerEmergencyBinarySensor(RainViewerBaseBinary):
-    """True cuando el nivel de alerta es 'emergency'."""
+    """True when alert level is 'emergency'."""
 
     def __init__(self, coordinator, entry):
         super().__init__(coordinator, entry, "emergency", "Emergency Alert",

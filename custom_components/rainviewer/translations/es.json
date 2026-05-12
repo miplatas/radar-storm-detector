@@ -17,7 +17,11 @@
           "tile_y": "Tile Y del radar",
           "rain_threshold": "Umbral de lluvia (fracción de píxeles)",
           "hail_threshold": "Umbral de granizo (fracción de píxeles)",
-          "dist_threshold": "Distancia de alerta (píxeles)"
+          "dist_threshold": "Distancia de alerta (píxeles)",
+          "gif_speed": "Velocidad del GIF (ms por frame)",
+          "map_style": "Estilo del mapa base",
+          "timezone": "Zona horaria (ej. America/Mexico_City)",
+          "test_draw_proximity_circles": "[TEST] Dibujar círculos de proximidad en GIF"
         }
       }
     },

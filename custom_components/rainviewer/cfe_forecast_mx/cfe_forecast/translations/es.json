@@ -1,0 +1,80 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "CFE Forecast MX – Sensores de Energía",
+        "description": "Selecciona los sensores que miden tu consumo eléctrico. Asegúrate de que tengan `device_class: energy`.",
+        "data": {
+          "import_sensor": "Sensor de Importación (energía de la red)",
+          "export_sensor": "Sensor de Exportación (energía generada, opcional)"
+        }
+      },
+      "tariff": {
+        "title": "CFE Forecast MX – Tarifa y Bimestre",
+        "description": "Configura tu tarifa CFE y los parámetros del ciclo de facturación bimestral.",
+        "data": {
+          "tariff": "Tarifa CFE",
+          "cut_day": "Día de corte del bimestre (1-31)",
+          "start_month": "Mes de inicio del bimestre (1=Enero ... 12=Diciembre)",
+          "initial_bag": "Bolsa de energía inicial (kWh acumulados a tu favor)"
+        }
+      },
+      "prices": {
+        "title": "CFE Forecast MX – Precios por Escalón",
+        "description": "Configura los precios de tu tarifa. Los valores por defecto corresponden a la Tarifa 1C.",
+        "data": {
+          "basic_limit": "Límite del escalón Básico (kWh)",
+          "basic_price": "Precio escalón Básico (MXN/kWh)",
+          "intermediate_limit": "Límite del escalón Intermedio (kWh adicionales)",
+          "intermediate_price": "Precio escalón Intermedio (MXN/kWh)",
+          "excess_price": "Precio escalón Excedente (MXN/kWh)",
+          "iva": "IVA (0.16 = 16%)",
+          "fixed_charge": "Cargo Fijo / DAP (MXN por bimestre)"
+        }
+      }
+    },
+    "error": {
+      "sensor_required": "Debes seleccionar un sensor de importación de energía.",
+      "invalid_limit": "El límite del escalón básico debe ser mayor a cero."
+    },
+    "abort": {
+      "already_configured": "Esta integración ya está configurada."
+    }
+  },
+  "options": {
+    "step": {
+      "sensors": {
+        "title": "Editar Sensores de Energía",
+        "data": {
+          "import_sensor": "Sensor de Importación",
+          "export_sensor": "Sensor de Exportación (opcional)"
+        }
+      },
+      "tariff_options": {
+        "title": "Editar Tarifa y Bimestre",
+        "data": {
+          "tariff": "Tarifa CFE",
+          "cut_day": "Día de corte",
+          "start_month": "Mes de inicio del bimestre",
+          "initial_bag": "Bolsa de energía inicial (kWh)"
+        }
+      },
+      "prices_options": {
+        "title": "Editar Precios por Escalón",
+        "data": {
+          "basic_limit": "Límite Básico (kWh)",
+          "basic_price": "Precio Básico (MXN/kWh)",
+          "intermediate_limit": "Límite Intermedio (kWh)",
+          "intermediate_price": "Precio Intermedio (MXN/kWh)",
+          "excess_price": "Precio Excedente (MXN/kWh)",
+          "iva": "IVA",
+          "fixed_charge": "Cargo Fijo (MXN)"
+        }
+      }
+    },
+    "error": {
+      "sensor_required": "Debes seleccionar un sensor de importación.",
+      "invalid_limit": "El límite del escalón básico debe ser mayor a cero."
+    }
+  }
+}

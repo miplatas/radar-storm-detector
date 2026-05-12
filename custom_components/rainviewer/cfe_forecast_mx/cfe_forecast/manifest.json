@@ -1,0 +1,13 @@
+{
+  "domain": "cfe_forecast",
+  "name": "CFE Forecast MX",
+  "version": "1.0.0",
+  "documentation": "https://github.com/tu-usuario/cfe_forecast_mx",
+  "issue_tracker": "https://github.com/tu-usuario/cfe_forecast_mx/issues",
+  "dependencies": [],
+  "codeowners": ["@tu-usuario"],
+  "requirements": [],
+  "iot_class": "local_polling",
+  "config_flow": true,
+  "homeassistant": "2023.1.0"
+}

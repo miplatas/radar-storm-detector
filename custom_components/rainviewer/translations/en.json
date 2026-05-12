@@ -17,7 +17,11 @@
           "tile_y": "Radar Tile Y",
           "rain_threshold": "Rain threshold (pixel fraction)",
           "hail_threshold": "Hail threshold (pixel fraction)",
-          "dist_threshold": "Alert distance (pixels)"
+          "dist_threshold": "Alert distance (pixels)",
+          "gif_speed": "GIF speed (ms per frame)",
+          "map_style": "Base map style",
+          "timezone": "Timezone (e.g. America/Mexico_City)",
+          "test_draw_proximity_circles": "[TEST] Draw proximity circles on GIF"
         }
       }
     },

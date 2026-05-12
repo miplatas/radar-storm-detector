@@ -1,4 +1,4 @@
-"""Constantes para la integración RainViewer Storm Detector."""
+"""Constants for the RainViewer Storm Detector integration."""
 
 DOMAIN = "rainviewer"
 PLATFORMS = ["sensor", "binary_sensor", "camera"]
@@ -16,6 +16,9 @@ CONF_RAIN_THRESHOLD = "rain_threshold"
 CONF_HAIL_THRESHOLD = "hail_threshold"
 CONF_DIST_THRESHOLD = "dist_threshold"
 CONF_GIF_SPEED = "gif_speed"
+CONF_MAP_STYLE = "map_style"
+CONF_TEST_DRAW_PROXIMITY_CIRCLES = "test_draw_proximity_circles"
+CONF_TIMEZONE = "timezone"
 
 # Defaults
 DEFAULT_MQTT_PORT = 1883
@@ -27,7 +30,18 @@ DEFAULT_RAIN_THRESHOLD = 0.005
 DEFAULT_HAIL_THRESHOLD = 0.001
 DEFAULT_DIST_THRESHOLD = 30
 DEFAULT_FRAMES_N = 6
-DEFAULT_GIF_SPEED = 500  # milisegundos por frame
+DEFAULT_GIF_SPEED = 500  # milliseconds per frame
+DEFAULT_MAP_STYLE = "day"
+DEFAULT_TEST_DRAW_PROXIMITY_CIRCLES = False
+DEFAULT_TIMEZONE = "UTC"
+
+# Base map styles (tile URL with placeholders {zoom}, {x}, {y})
+MAP_TILE_URLS = {
+    "day":       "https://a.tile.openstreetmap.org/{zoom}/{x}/{y}.png",
+    "night":     "https://a.basemaps.cartocdn.com/dark_all/{zoom}/{x}/{y}.png",
+    "satellite": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{zoom}/{y}/{x}",
+}
+MAP_STYLE_OPTIONS = ["day", "night", "satellite"]
 
 # RainViewer API
 RAINVIEWER_API = "https://api.rainviewer.com/public/weather-maps.json"

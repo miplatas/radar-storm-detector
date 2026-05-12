@@ -1,16 +1,17 @@
-"""Sensores de RainViewer Storm Detector para Home Assistant."""
+"""RainViewer Storm Detector sensors for Home Assistant."""
 
 from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, ALERT_ICONS
+from .const import DOMAIN, ALERT_ICONS, CONF_TIMEZONE
 from .coordinator import RainViewerCoordinator
 
 log = logging.getLogger(__name__)
@@ -21,7 +22,7 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Crea todos los sensores automáticamente."""
+    """Create all sensors automatically."""
     coordinator: RainViewerCoordinator = hass.data[DOMAIN][entry.entry_id]
 
     entities = [
@@ -48,13 +49,13 @@ async def async_setup_entry(
 # Base
 # ---------------------------------------------------------------------------
 class RainViewerBaseSensor(CoordinatorEntity, SensorEntity):
-    """Sensor base para RainViewer."""
+    """Base sensor for RainViewer."""
 
     def __init__(self, coordinator: RainViewerCoordinator, entry: ConfigEntry,
                  key: str, name: str, icon: str, unit: str | None = None):
         super().__init__(coordinator)
         self._key = key
-        self._attr_name = f"RainViewer {name}"
+        self._attr_name = name
         self._attr_unique_id = f"rainviewer_{entry.entry_id}_{key}"
         self._attr_icon = icon
         self._attr_native_unit_of_measurement = unit
@@ -64,7 +65,7 @@ class RainViewerBaseSensor(CoordinatorEntity, SensorEntity):
     def device_info(self):
         return {
             "identifiers": {(DOMAIN, self._entry.entry_id)},
-            "name": "RainViewer Storm Detector",
+            "name": "Storm Detector",
             "manufacturer": "RainViewer",
             "model": "Radar Storm Detector",
             "entry_type": "service",
@@ -75,10 +76,10 @@ class RainViewerBaseSensor(CoordinatorEntity, SensorEntity):
 
 
 # ---------------------------------------------------------------------------
-# Sensores concretos
+# Concrete sensors
 # ---------------------------------------------------------------------------
 class RainViewerAlertSensor(RainViewerBaseSensor):
-    """Nivel de alerta: none / watch / warning / emergency."""
+    """Alert level: none / watch / warning / emergency."""
 
     def __init__(self, coordinator, entry):
         super().__init__(coordinator, entry, "alert", "Alert Level",
@@ -98,12 +99,12 @@ class RainViewerAlertSensor(RainViewerBaseSensor):
         d = self._data()
         return {
             "alert_message": d.get("alert_msg", ""),
-            "approaching":   d.get("movement", {}).get("approaching", False),
+            "approaching":   d.get("proximity", {}).get("approaching", False),
         }
 
 
 class RainViewerAlertMsgSensor(RainViewerBaseSensor):
-    """Mensaje descriptivo de la alerta."""
+    """Alert descriptive message."""
 
     def __init__(self, coordinator, entry):
         super().__init__(coordinator, entry, "alert_msg", "Alert Message",
@@ -115,7 +116,7 @@ class RainViewerAlertMsgSensor(RainViewerBaseSensor):
 
 
 class RainViewerRainSensor(RainViewerBaseSensor):
-    """Fracción de píxeles con lluvia (ligera + moderada)."""
+    """Pixel fraction with rain (ligera + moderada)."""
 
     def __init__(self, coordinator, entry):
         super().__init__(coordinator, entry, "rain", "Rain Coverage",
@@ -129,7 +130,7 @@ class RainViewerRainSensor(RainViewerBaseSensor):
 
 
 class RainViewerHeavySensor(RainViewerBaseSensor):
-    """Fracción de píxeles con lluvia intensa."""
+    """Pixel fraction with heavy rain."""
 
     def __init__(self, coordinator, entry):
         super().__init__(coordinator, entry, "heavy", "Heavy Rain Coverage",
@@ -143,7 +144,7 @@ class RainViewerHeavySensor(RainViewerBaseSensor):
 
 
 class RainViewerHailSensor(RainViewerBaseSensor):
-    """Fracción de píxeles con granizo."""
+    """Pixel fraction with hail."""
 
     def __init__(self, coordinator, entry):
         super().__init__(coordinator, entry, "hail", "Hail Coverage",
@@ -157,7 +158,7 @@ class RainViewerHailSensor(RainViewerBaseSensor):
 
 
 class RainViewerRainTrendSensor(RainViewerBaseSensor):
-    """Tendencia de lluvia (positivo = aumentando)."""
+    """Tendency of rain (positive = increasing)."""
 
     def __init__(self, coordinator, entry):
         super().__init__(coordinator, entry, "rain_trend", "Rain Trend",
@@ -171,7 +172,7 @@ class RainViewerRainTrendSensor(RainViewerBaseSensor):
 
 
 class RainViewerHailTrendSensor(RainViewerBaseSensor):
-    """Tendencia de granizo."""
+    """Tendency of hail."""
 
     def __init__(self, coordinator, entry):
         super().__init__(coordinator, entry, "hail_trend", "Hail Trend",
@@ -185,7 +186,7 @@ class RainViewerHailTrendSensor(RainViewerBaseSensor):
 
 
 class RainViewerDistanceSensor(RainViewerBaseSensor):
-    """Distancia estimada de la precipitación al punto de referencia (píxeles)."""
+    """Estimated precipitation distance to the reference point (pixels)."""
 
     def __init__(self, coordinator, entry):
         super().__init__(coordinator, entry, "distance", "Storm Distance",
@@ -194,12 +195,23 @@ class RainViewerDistanceSensor(RainViewerBaseSensor):
 
     @property
     def native_value(self):
-        val = self._data().get("movement", {}).get("distance", -1)
+        val = self._data().get("proximity", {}).get("dist_mean", -1)
         return round(val, 2) if val >= 0 else None
+
+    @property
+    def extra_state_attributes(self):
+        p = self._data().get("proximity", {})
+        return {
+            "bearing":      p.get("bearing_mean"),
+            "dist_max":     p.get("dist_max"),
+            "approach_vel": p.get("approach_vel"),
+            "core_growth":  p.get("core_growth"),
+            "approaching":  p.get("approaching", False),
+        }
 
 
 class RainViewerDbzMeanSensor(RainViewerBaseSensor):
-    """dBZ promedio del último frame."""
+    """dBZ average of the latest frame."""
 
     def __init__(self, coordinator, entry):
         super().__init__(coordinator, entry, "dbz_mean", "dBZ Mean",
@@ -215,7 +227,7 @@ class RainViewerDbzMeanSensor(RainViewerBaseSensor):
 
 
 class RainViewerDbzMaxSensor(RainViewerBaseSensor):
-    """dBZ máximo del último frame."""
+    """dBZ maximum of the latest frame."""
 
     def __init__(self, coordinator, entry):
         super().__init__(coordinator, entry, "dbz_max", "dBZ Max",
@@ -231,33 +243,34 @@ class RainViewerDbzMaxSensor(RainViewerBaseSensor):
 
 
 class RainViewerMovementVxSensor(RainViewerBaseSensor):
-    """Vector de movimiento horizontal de la tormenta."""
+    """Storm approach velocity (px/frame; negative = approaching)."""
 
     def __init__(self, coordinator, entry):
-        super().__init__(coordinator, entry, "vx", "Storm Movement X",
-                         "mdi:arrow-right", "px/frame")
+        super().__init__(coordinator, entry, "vx", "Storm Approach Velocity",
+                         "mdi:arrow-collapse-down", "px/frame")
         self._attr_state_class = SensorStateClass.MEASUREMENT
 
     @property
     def native_value(self):
-        return self._data().get("movement", {}).get("vx", 0)
+        return self._data().get("proximity", {}).get("approach_vel", 0)
 
 
 class RainViewerMovementVySensor(RainViewerBaseSensor):
-    """Vector de movimiento vertical de la tormenta."""
+    """Nearest storm bearing (compass: 0=N, 90=E, 180=S, 270=W)."""
 
     def __init__(self, coordinator, entry):
-        super().__init__(coordinator, entry, "vy", "Storm Movement Y",
-                         "mdi:arrow-down", "px/frame")
+        super().__init__(coordinator, entry, "vy", "Storm Bearing",
+                         "mdi:compass-outline", "°")
         self._attr_state_class = SensorStateClass.MEASUREMENT
 
     @property
     def native_value(self):
-        return self._data().get("movement", {}).get("vy", 0)
+        val = self._data().get("proximity", {}).get("bearing_mean")
+        return round(val, 1) if val is not None else None
 
 
 class RainViewerLastRadarUrlSensor(RainViewerBaseSensor):
-    """URL del PNG del último frame de radar analizado."""
+    """URL of the latest analyzed radar PNG frame."""
 
     def __init__(self, coordinator, entry):
         super().__init__(coordinator, entry, "last_radar_url", "Last Radar Image URL",
@@ -274,11 +287,21 @@ class RainViewerLastRadarUrlSensor(RainViewerBaseSensor):
 
 
 class RainViewerLastRadarTimeSensor(RainViewerBaseSensor):
-    """Timestamp legible del último frame de radar analizado."""
+    """Human-readable timestamp of the latest analyzed radar frame."""
 
     def __init__(self, coordinator, entry):
         super().__init__(coordinator, entry, "last_radar_time", "Last Radar Time",
                          "mdi:clock-outline")
+
+    def _target_tz(self):
+        cfg = {**self._entry.data, **self._entry.options}
+        tz_name = cfg.get(CONF_TIMEZONE)
+        if not tz_name and self.hass is not None:
+            tz_name = self.hass.config.time_zone
+        try:
+            return ZoneInfo(tz_name) if tz_name else timezone.utc
+        except Exception:
+            return timezone.utc
 
     @property
     def native_value(self):
@@ -286,8 +309,8 @@ class RainViewerLastRadarTimeSensor(RainViewerBaseSensor):
         if ts is None:
             return None
         try:
-            dt = datetime.fromtimestamp(int(ts), tz=timezone.utc)
-            return dt.strftime("%Y-%m-%d %H:%M:%S UTC")
+            dt = datetime.fromtimestamp(int(ts), tz=timezone.utc).astimezone(self._target_tz())
+            return dt.strftime("%Y-%m-%d %H:%M:%S %Z")
         except Exception:
             return str(ts)
 
@@ -297,10 +320,12 @@ class RainViewerLastRadarTimeSensor(RainViewerBaseSensor):
         if ts is None:
             return {}
         try:
-            dt = datetime.fromtimestamp(int(ts), tz=timezone.utc)
+            tz = self._target_tz()
+            dt = datetime.fromtimestamp(int(ts), tz=timezone.utc).astimezone(tz)
             return {
                 "unix_timestamp": ts,
                 "iso8601": dt.isoformat(),
+                "timezone": str(tz),
             }
         except Exception:
             return {"unix_timestamp": ts}

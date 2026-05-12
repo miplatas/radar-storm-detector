@@ -1,4 +1,4 @@
-"""Coordinador de actualización de datos para RainViewer."""
+"""RainViewer data update coordinator."""
 
 import logging
 import json
@@ -20,7 +20,7 @@ log = logging.getLogger(__name__)
 
 
 class RainViewerCoordinator(DataUpdateCoordinator):
-    """Coordinador que obtiene datos del radar y los publica en MQTT."""
+    """Coordinator that gets radar data and publishes it to MQTT."""
 
     def __init__(self, hass: HomeAssistant, config: dict):
         self.lat = config["latitude"]
@@ -50,7 +50,7 @@ class RainViewerCoordinator(DataUpdateCoordinator):
     # MQTT
     # ------------------------------------------------------------------
     def _setup_mqtt(self):
-        """Crea y conecta cliente MQTT."""
+        """Creates and connects MQTT client."""
         if self._mqtt_client is not None:
             return
 
@@ -60,13 +60,13 @@ class RainViewerCoordinator(DataUpdateCoordinator):
 
         def on_connect(c, userdata, flags, rc):
             if rc == 0:
-                log.info("RainViewer: MQTT conectado a %s:%s", self.mqtt_broker, self.mqtt_port)
+                log.info("RainViewer: MQTT connected to %s:%s", self.mqtt_broker, self.mqtt_port)
             else:
-                log.warning("RainViewer: MQTT error de conexión rc=%s", rc)
+                log.warning("RainViewer: MQTT connection error rc=%s", rc)
 
         def on_disconnect(c, userdata, rc):
             if rc != 0:
-                log.warning("RainViewer: MQTT desconectado inesperadamente rc=%s", rc)
+                log.warning("RainViewer: MQTT unexpectedly disconnected rc=%s", rc)
 
         client.on_connect = on_connect
         client.on_disconnect = on_disconnect
@@ -76,28 +76,28 @@ class RainViewerCoordinator(DataUpdateCoordinator):
             client.loop_start()
             self._mqtt_client = client
         except Exception as e:
-            log.error("RainViewer: No se pudo conectar al broker MQTT: %s", e)
+            log.error("RainViewer: Could not connect to MQTT broker: %s", e)
             self._mqtt_client = None
 
     def _publish(self, payload: dict, alert_level: str):
-        """Publica datos en MQTT."""
+        """Publishes data to MQTT."""
         if self._mqtt_client is None:
             return
         msg = json.dumps(payload, ensure_ascii=False)
         try:
             self._mqtt_client.publish(MQTT_TOPIC_STATUS, msg, qos=1, retain=True)
-            log.debug("RainViewer: publicado en %s", MQTT_TOPIC_STATUS)
+            log.debug("RainViewer: published to %s", MQTT_TOPIC_STATUS)
             if alert_level != "none":
                 self._mqtt_client.publish(MQTT_TOPIC_ALERT, msg, qos=1, retain=True)
-                log.info("RainViewer: alerta [%s] publicada en %s", alert_level.upper(), MQTT_TOPIC_ALERT)
+                log.info("RainViewer: alert [%s] published to %s", alert_level.upper(), MQTT_TOPIC_ALERT)
         except Exception as e:
-            log.error("RainViewer: error publicando en MQTT: %s", e)
+            log.error("RainViewer: error publishing to MQTT: %s", e)
 
     # ------------------------------------------------------------------
     # UPDATE
     # ------------------------------------------------------------------
     async def _async_update_data(self):
-        """Obtiene datos del radar (ejecutado en thread pool para no bloquear HA)."""
+        """Gets radar data (executed in thread pool to avoid blocking HA)."""
         try:
             result = await self.hass.async_add_executor_job(
                 run_analysis,
@@ -112,14 +112,14 @@ class RainViewerCoordinator(DataUpdateCoordinator):
                 self.dist_threshold,
             )
         except Exception as e:
-            raise UpdateFailed(f"Error analizando radar: {e}") from e
+            raise UpdateFailed(f"Error analyzing radar: {e}") from e
 
         if result is None:
-            raise UpdateFailed("No se obtuvieron datos del radar RainViewer")
+            raise UpdateFailed("No RainViewer radar data was obtained")
 
         payload, alert_level = result
 
-        # Conectar MQTT si no está conectado y publicar
+        # Connect MQTT if not connected and publish
         if self.mqtt_broker:
             self._setup_mqtt()
             self._publish(payload, alert_level)
@@ -127,7 +127,7 @@ class RainViewerCoordinator(DataUpdateCoordinator):
         return payload
 
     async def async_shutdown(self):
-        """Desconectar MQTT al remover la integración."""
+        """Disconnect MQTT when removing the integration."""
         if self._mqtt_client:
             self._mqtt_client.loop_stop()
             self._mqtt_client.disconnect()

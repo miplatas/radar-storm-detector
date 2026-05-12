@@ -1,4 +1,4 @@
-"""Config Flow para RainViewer Storm Detector."""
+"""Config Flow for RainViewer Storm Detector."""
 
 import math
 import voluptuous as vol
@@ -20,6 +20,9 @@ from .const import (
     CONF_HAIL_THRESHOLD,
     CONF_DIST_THRESHOLD,
     CONF_GIF_SPEED,
+    CONF_MAP_STYLE,
+    CONF_TEST_DRAW_PROXIMITY_CIRCLES,
+    CONF_TIMEZONE,
     DEFAULT_MQTT_PORT,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_ZOOM,
@@ -29,11 +32,15 @@ from .const import (
     DEFAULT_HAIL_THRESHOLD,
     DEFAULT_DIST_THRESHOLD,
     DEFAULT_GIF_SPEED,
+    DEFAULT_MAP_STYLE,
+    DEFAULT_TEST_DRAW_PROXIMITY_CIRCLES,
+    DEFAULT_TIMEZONE,
+    MAP_STYLE_OPTIONS,
 )
 
 
 class RainViewerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Flujo de configuración para RainViewer."""
+    """Configuration flow for RainViewer."""
 
     VERSION = 1
 
@@ -42,8 +49,9 @@ class RainViewerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         ha_lat = self.hass.config.latitude
         ha_lon = self.hass.config.longitude
+        ha_tz = self.hass.config.time_zone or DEFAULT_TIMEZONE
 
-        # Pre-calcular tile sugerido a partir de la ubicación de HA
+        # Pre-calculate suggested tile from the HA location
         def _lat_lon_to_tile(lat, lon, zoom):
             n = 2 ** zoom
             x = int((lon + 180.0) / 360.0 * n)
@@ -63,7 +71,7 @@ class RainViewerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 await self.async_set_unique_id(f"rainviewer_{lat}_{lon}")
                 self._abort_if_unique_id_configured()
                 return self.async_create_entry(
-                    title=f"RainViewer ({lat:.4f}, {lon:.4f})",
+                    title=f"Storm Detector ({lat:.4f}, {lon:.4f})",
                     data=user_input,
                 )
 
@@ -82,6 +90,12 @@ class RainViewerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             vol.Optional(CONF_HAIL_THRESHOLD, default=DEFAULT_HAIL_THRESHOLD): vol.Coerce(float),
             vol.Optional(CONF_DIST_THRESHOLD, default=DEFAULT_DIST_THRESHOLD): vol.Coerce(int),
             vol.Optional(CONF_GIF_SPEED,      default=DEFAULT_GIF_SPEED):      vol.Coerce(int),
+            vol.Optional(CONF_MAP_STYLE,      default=DEFAULT_MAP_STYLE):      vol.In(MAP_STYLE_OPTIONS),
+            vol.Optional(CONF_TIMEZONE,       default=ha_tz):                  str,
+            vol.Optional(
+                CONF_TEST_DRAW_PROXIMITY_CIRCLES,
+                default=DEFAULT_TEST_DRAW_PROXIMITY_CIRCLES,
+            ): bool,
         })
 
         return self.async_show_form(
@@ -97,7 +111,7 @@ class RainViewerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class RainViewerOptionsFlow(config_entries.OptionsFlow):
-    """Flujo de opciones para RainViewer (actualizable sin reiniciar)."""
+    """Options flow for RainViewer (updateable without restart)."""
 
     def __init__(self, config_entry):
         self.config_entry = config_entry
@@ -107,6 +121,7 @@ class RainViewerOptionsFlow(config_entries.OptionsFlow):
             return self.async_create_entry(title="", data=user_input)
 
         opts = self.config_entry.options or self.config_entry.data
+        ha_tz = self.hass.config.time_zone or DEFAULT_TIMEZONE
 
         schema = vol.Schema({
             vol.Optional(CONF_SCAN_INTERVAL,  default=opts.get(CONF_SCAN_INTERVAL,  DEFAULT_SCAN_INTERVAL)):  vol.Coerce(int),
@@ -114,6 +129,15 @@ class RainViewerOptionsFlow(config_entries.OptionsFlow):
             vol.Optional(CONF_HAIL_THRESHOLD, default=opts.get(CONF_HAIL_THRESHOLD, DEFAULT_HAIL_THRESHOLD)): vol.Coerce(float),
             vol.Optional(CONF_DIST_THRESHOLD, default=opts.get(CONF_DIST_THRESHOLD, DEFAULT_DIST_THRESHOLD)): vol.Coerce(int),
             vol.Optional(CONF_GIF_SPEED,      default=opts.get(CONF_GIF_SPEED,      DEFAULT_GIF_SPEED)):      vol.Coerce(int),
+            vol.Optional(CONF_MAP_STYLE,      default=opts.get(CONF_MAP_STYLE,      DEFAULT_MAP_STYLE)):      vol.In(MAP_STYLE_OPTIONS),
+            vol.Optional(CONF_TIMEZONE,       default=opts.get(CONF_TIMEZONE,       ha_tz)):                 str,
+            vol.Optional(
+                CONF_TEST_DRAW_PROXIMITY_CIRCLES,
+                default=opts.get(
+                    CONF_TEST_DRAW_PROXIMITY_CIRCLES,
+                    DEFAULT_TEST_DRAW_PROXIMITY_CIRCLES,
+                ),
+            ): bool,
         })
 
         return self.async_show_form(step_id="init", data_schema=schema)
