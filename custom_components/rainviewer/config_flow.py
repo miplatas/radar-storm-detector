@@ -1,5 +1,6 @@
 """Config Flow for RainViewer Storm Detector."""
 
+import logging
 import math
 import voluptuous as vol
 from homeassistant import config_entries
@@ -38,6 +39,8 @@ from .const import (
     MAP_STYLE_OPTIONS,
     TIMEZONE_OPTIONS,
 )
+
+log = logging.getLogger(__name__)
 
 
 class RainViewerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -140,6 +143,35 @@ class RainViewerOptionsFlow(config_entries.OptionsFlow):
         """Return a valid map style option; fallback to default for legacy values."""
         return style_value if style_value in MAP_STYLE_OPTIONS else DEFAULT_MAP_STYLE
 
+    @staticmethod
+    def _normalize_int(value, default):
+        """Return an int value or fallback to default for legacy invalid values."""
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return default
+
+    @staticmethod
+    def _normalize_float(value, default):
+        """Return a float value or fallback to default for legacy invalid values."""
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return default
+
+    @staticmethod
+    def _normalize_bool(value, default):
+        """Return a bool value or fallback to default for legacy invalid values."""
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            lowered = value.strip().lower()
+            if lowered in {"1", "true", "yes", "on"}:
+                return True
+            if lowered in {"0", "false", "no", "off"}:
+                return False
+        return default
+
     async def async_step_init(self, user_input=None):
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
@@ -147,28 +179,68 @@ class RainViewerOptionsFlow(config_entries.OptionsFlow):
         opts = self.config_entry.options or self.config_entry.data
         current_tz = opts.get(CONF_TIMEZONE, DEFAULT_TIMEZONE)
         current_map_style = opts.get(CONF_MAP_STYLE, DEFAULT_MAP_STYLE)
+        current_scan_interval = opts.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+        current_rain_threshold = opts.get(CONF_RAIN_THRESHOLD, DEFAULT_RAIN_THRESHOLD)
+        current_hail_threshold = opts.get(CONF_HAIL_THRESHOLD, DEFAULT_HAIL_THRESHOLD)
+        current_dist_threshold = opts.get(CONF_DIST_THRESHOLD, DEFAULT_DIST_THRESHOLD)
+        current_gif_speed = opts.get(CONF_GIF_SPEED, DEFAULT_GIF_SPEED)
+        current_draw_circles = opts.get(
+            CONF_TEST_DRAW_PROXIMITY_CIRCLES,
+            DEFAULT_TEST_DRAW_PROXIMITY_CIRCLES,
+        )
 
-        schema = vol.Schema({
-            vol.Optional(CONF_SCAN_INTERVAL,  default=opts.get(CONF_SCAN_INTERVAL,  DEFAULT_SCAN_INTERVAL)):  vol.Coerce(int),
-            vol.Optional(CONF_RAIN_THRESHOLD, default=opts.get(CONF_RAIN_THRESHOLD, DEFAULT_RAIN_THRESHOLD)): vol.Coerce(float),
-            vol.Optional(CONF_HAIL_THRESHOLD, default=opts.get(CONF_HAIL_THRESHOLD, DEFAULT_HAIL_THRESHOLD)): vol.Coerce(float),
-            vol.Optional(CONF_DIST_THRESHOLD, default=opts.get(CONF_DIST_THRESHOLD, DEFAULT_DIST_THRESHOLD)): vol.Coerce(int),
-            vol.Optional(CONF_GIF_SPEED,      default=opts.get(CONF_GIF_SPEED,      DEFAULT_GIF_SPEED)):      vol.Coerce(int),
-            vol.Optional(
-                CONF_MAP_STYLE,
-                default=self._normalize_map_style_option(current_map_style),
-            ): vol.In(MAP_STYLE_OPTIONS),
-            vol.Optional(
-                CONF_TIMEZONE,
-                default=self._normalize_timezone_option(current_tz),
-            ): vol.In(TIMEZONE_OPTIONS),
-            vol.Optional(
-                CONF_TEST_DRAW_PROXIMITY_CIRCLES,
-                default=opts.get(
+        try:
+            schema = vol.Schema({
+                vol.Optional(
+                    CONF_SCAN_INTERVAL,
+                    default=self._normalize_int(current_scan_interval, DEFAULT_SCAN_INTERVAL),
+                ): vol.Coerce(int),
+                vol.Optional(
+                    CONF_RAIN_THRESHOLD,
+                    default=self._normalize_float(current_rain_threshold, DEFAULT_RAIN_THRESHOLD),
+                ): vol.Coerce(float),
+                vol.Optional(
+                    CONF_HAIL_THRESHOLD,
+                    default=self._normalize_float(current_hail_threshold, DEFAULT_HAIL_THRESHOLD),
+                ): vol.Coerce(float),
+                vol.Optional(
+                    CONF_DIST_THRESHOLD,
+                    default=self._normalize_int(current_dist_threshold, DEFAULT_DIST_THRESHOLD),
+                ): vol.Coerce(int),
+                vol.Optional(
+                    CONF_GIF_SPEED,
+                    default=self._normalize_int(current_gif_speed, DEFAULT_GIF_SPEED),
+                ): vol.Coerce(int),
+                vol.Optional(
+                    CONF_MAP_STYLE,
+                    default=self._normalize_map_style_option(current_map_style),
+                ): vol.In(MAP_STYLE_OPTIONS),
+                vol.Optional(
+                    CONF_TIMEZONE,
+                    default=self._normalize_timezone_option(current_tz),
+                ): vol.In(TIMEZONE_OPTIONS),
+                vol.Optional(
                     CONF_TEST_DRAW_PROXIMITY_CIRCLES,
-                    DEFAULT_TEST_DRAW_PROXIMITY_CIRCLES,
-                ),
-            ): bool,
-        })
+                    default=self._normalize_bool(
+                        current_draw_circles,
+                        DEFAULT_TEST_DRAW_PROXIMITY_CIRCLES,
+                    ),
+                ): bool,
+            })
+        except Exception:
+            log.exception("RainViewer options flow: failed to build schema, using safe defaults")
+            schema = vol.Schema({
+                vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): vol.Coerce(int),
+                vol.Optional(CONF_RAIN_THRESHOLD, default=DEFAULT_RAIN_THRESHOLD): vol.Coerce(float),
+                vol.Optional(CONF_HAIL_THRESHOLD, default=DEFAULT_HAIL_THRESHOLD): vol.Coerce(float),
+                vol.Optional(CONF_DIST_THRESHOLD, default=DEFAULT_DIST_THRESHOLD): vol.Coerce(int),
+                vol.Optional(CONF_GIF_SPEED, default=DEFAULT_GIF_SPEED): vol.Coerce(int),
+                vol.Optional(CONF_MAP_STYLE, default=DEFAULT_MAP_STYLE): vol.In(MAP_STYLE_OPTIONS),
+                vol.Optional(CONF_TIMEZONE, default=DEFAULT_TIMEZONE): vol.In(TIMEZONE_OPTIONS),
+                vol.Optional(
+                    CONF_TEST_DRAW_PROXIMITY_CIRCLES,
+                    default=DEFAULT_TEST_DRAW_PROXIMITY_CIRCLES,
+                ): bool,
+            })
 
         return self.async_show_form(step_id="init", data_schema=schema)
