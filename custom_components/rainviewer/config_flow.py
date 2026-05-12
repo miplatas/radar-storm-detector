@@ -36,6 +36,7 @@ from .const import (
     DEFAULT_TEST_DRAW_PROXIMITY_CIRCLES,
     DEFAULT_TIMEZONE,
     MAP_STYLE_OPTIONS,
+    TIMEZONE_OPTIONS,
 )
 
 
@@ -44,12 +45,17 @@ class RainViewerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
+    @staticmethod
+    def _normalize_timezone_option(tz_value):
+        """Return a valid UTC offset option; fallback to default for legacy values."""
+        return tz_value if tz_value in TIMEZONE_OPTIONS else DEFAULT_TIMEZONE
+
     async def async_step_user(self, user_input=None):
         errors = {}
 
         ha_lat = self.hass.config.latitude
         ha_lon = self.hass.config.longitude
-        ha_tz = self.hass.config.time_zone or DEFAULT_TIMEZONE
+        default_tz = DEFAULT_TIMEZONE
 
         # Pre-calculate suggested tile from the HA location
         def _lat_lon_to_tile(lat, lon, zoom):
@@ -91,7 +97,10 @@ class RainViewerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             vol.Optional(CONF_DIST_THRESHOLD, default=DEFAULT_DIST_THRESHOLD): vol.Coerce(int),
             vol.Optional(CONF_GIF_SPEED,      default=DEFAULT_GIF_SPEED):      vol.Coerce(int),
             vol.Optional(CONF_MAP_STYLE,      default=DEFAULT_MAP_STYLE):      vol.In(MAP_STYLE_OPTIONS),
-            vol.Optional(CONF_TIMEZONE,       default=ha_tz):                  str,
+            vol.Optional(
+                CONF_TIMEZONE,
+                default=self._normalize_timezone_option(default_tz),
+            ): vol.In(TIMEZONE_OPTIONS),
             vol.Optional(
                 CONF_TEST_DRAW_PROXIMITY_CIRCLES,
                 default=DEFAULT_TEST_DRAW_PROXIMITY_CIRCLES,
@@ -116,12 +125,17 @@ class RainViewerOptionsFlow(config_entries.OptionsFlow):
     def __init__(self, config_entry):
         self.config_entry = config_entry
 
+    @staticmethod
+    def _normalize_timezone_option(tz_value):
+        """Return a valid UTC offset option; fallback to default for legacy values."""
+        return tz_value if tz_value in TIMEZONE_OPTIONS else DEFAULT_TIMEZONE
+
     async def async_step_init(self, user_input=None):
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
         opts = self.config_entry.options or self.config_entry.data
-        ha_tz = self.hass.config.time_zone or DEFAULT_TIMEZONE
+        current_tz = opts.get(CONF_TIMEZONE, DEFAULT_TIMEZONE)
 
         schema = vol.Schema({
             vol.Optional(CONF_SCAN_INTERVAL,  default=opts.get(CONF_SCAN_INTERVAL,  DEFAULT_SCAN_INTERVAL)):  vol.Coerce(int),
@@ -130,7 +144,10 @@ class RainViewerOptionsFlow(config_entries.OptionsFlow):
             vol.Optional(CONF_DIST_THRESHOLD, default=opts.get(CONF_DIST_THRESHOLD, DEFAULT_DIST_THRESHOLD)): vol.Coerce(int),
             vol.Optional(CONF_GIF_SPEED,      default=opts.get(CONF_GIF_SPEED,      DEFAULT_GIF_SPEED)):      vol.Coerce(int),
             vol.Optional(CONF_MAP_STYLE,      default=opts.get(CONF_MAP_STYLE,      DEFAULT_MAP_STYLE)):      vol.In(MAP_STYLE_OPTIONS),
-            vol.Optional(CONF_TIMEZONE,       default=opts.get(CONF_TIMEZONE,       ha_tz)):                 str,
+            vol.Optional(
+                CONF_TIMEZONE,
+                default=self._normalize_timezone_option(current_tz),
+            ): vol.In(TIMEZONE_OPTIONS),
             vol.Optional(
                 CONF_TEST_DRAW_PROXIMITY_CIRCLES,
                 default=opts.get(

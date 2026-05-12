@@ -264,7 +264,7 @@ class RainViewerCamera(CoordinatorEntity, Camera):
         return {
             "identifiers": {(DOMAIN, self._entry.entry_id)},
             "name": "Storm Detector",
-            "manufacturer": "RainViewer",
+            "manufacturer": "Radar",
             "model": "Radar Storm Detector",
             "entry_type": "service",
         }
@@ -534,7 +534,7 @@ class RainViewerColorScaleCamera(CoordinatorEntity, Camera):
         return {
             "identifiers": {(DOMAIN, self._entry.entry_id)},
             "name": "Storm Detector",
-            "manufacturer": "RainViewer",
+            "manufacturer": "Radar",
             "model": "Radar Storm Detector",
             "entry_type": "service",
         }
@@ -609,7 +609,7 @@ class RainViewerDbzGrayCamera(CoordinatorEntity, Camera):
         return {
             "identifiers": {(DOMAIN, self._entry.entry_id)},
             "name": "Storm Detector",
-            "manufacturer": "RainViewer",
+            "manufacturer": "Radar",
             "model": "Radar Storm Detector",
             "entry_type": "service",
         }

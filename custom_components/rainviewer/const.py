@@ -33,7 +33,7 @@ DEFAULT_FRAMES_N = 6
 DEFAULT_GIF_SPEED = 500  # milliseconds per frame
 DEFAULT_MAP_STYLE = "day"
 DEFAULT_TEST_DRAW_PROXIMITY_CIRCLES = False
-DEFAULT_TIMEZONE = "UTC"
+DEFAULT_TIMEZONE = "GMT -6"
 
 # Base map styles (tile URL with placeholders {zoom}, {x}, {y})
 MAP_TILE_URLS = {
@@ -42,6 +42,7 @@ MAP_TILE_URLS = {
     "satellite": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{zoom}/{y}/{x}",
 }
 MAP_STYLE_OPTIONS = ["day", "night", "satellite"]
+TIMEZONE_OPTIONS = [f"GMT {offset:+d}" for offset in range(-12, 15)]
 
 # RainViewer API
 RAINVIEWER_API = "https://api.rainviewer.com/public/weather-maps.json"

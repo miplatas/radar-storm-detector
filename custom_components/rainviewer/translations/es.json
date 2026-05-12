@@ -2,8 +2,8 @@
   "config": {
     "step": {
       "user": {
-        "title": "RainViewer Storm Detector",
-        "description": "Configura el detector de tormentas con radar RainViewer",
+        "title": "Radar Storm Detector",
+        "description": "Configura el detector de tormentas con datos de Radar",
         "data": {
           "latitude": "Latitud",
           "longitude": "Longitud",
@@ -20,7 +20,7 @@
           "dist_threshold": "Distancia de alerta (píxeles)",
           "gif_speed": "Velocidad del GIF (ms por frame)",
           "map_style": "Estilo del mapa base",
-          "timezone": "Zona horaria (ej. America/Mexico_City)",
+          "timezone": "Offset de zona horaria (GMT)",
           "test_draw_proximity_circles": "[TEST] Dibujar círculos de proximidad en GIF"
         }
       }
@@ -31,7 +31,7 @@
       "unknown": "Error desconocido"
     },
     "abort": {
-      "already_configured": "RainViewer ya está configurado"
+      "already_configured": "Radar ya está configurado"
     }
   }
 }

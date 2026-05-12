@@ -50,7 +50,7 @@ class RainViewerBaseBinary(CoordinatorEntity, BinarySensorEntity):
         return {
             "identifiers": {(DOMAIN, self._entry.entry_id)},
             "name": "Storm Detector",
-            "manufacturer": "RainViewer",
+            "manufacturer": "Radar",
             "model": "Radar Storm Detector",
             "entry_type": "service",
         }

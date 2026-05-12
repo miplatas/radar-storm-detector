@@ -2,8 +2,8 @@
   "config": {
     "step": {
       "user": {
-        "title": "RainViewer Storm Detector",
-        "description": "Configure the storm detector using RainViewer radar",
+        "title": "Radar Storm Detector",
+        "description": "Configure the storm detector using Radar data",
         "data": {
           "latitude": "Latitude",
           "longitude": "Longitude",
@@ -20,7 +20,7 @@
           "dist_threshold": "Alert distance (pixels)",
           "gif_speed": "GIF speed (ms per frame)",
           "map_style": "Base map style",
-          "timezone": "Timezone (e.g. America/Mexico_City)",
+          "timezone": "Timezone offset (GMT)",
           "test_draw_proximity_circles": "[TEST] Draw proximity circles on GIF"
         }
       }
@@ -31,7 +31,24 @@
       "unknown": "Unknown error"
     },
     "abort": {
-      "already_configured": "RainViewer is already configured"
+      "already_configured": "Radar is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Radar options",
+        "data": {
+          "scan_interval": "Update interval (seconds)",
+          "rain_threshold": "Rain threshold",
+          "hail_threshold": "Hail threshold",
+          "dist_threshold": "Alert distance (pixels)",
+          "gif_speed": "GIF speed (ms per frame)",
+          "map_style": "Base map style",
+          "timezone": "Timezone offset (GMT)",
+          "test_draw_proximity_circles": "[TEST] Draw proximity circles on GIF"
+        }
+      }
     }
   }
 }

@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+import re
 from zoneinfo import ZoneInfo
 from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
@@ -66,7 +67,7 @@ class RainViewerBaseSensor(CoordinatorEntity, SensorEntity):
         return {
             "identifiers": {(DOMAIN, self._entry.entry_id)},
             "name": "Storm Detector",
-            "manufacturer": "RainViewer",
+            "manufacturer": "Radar",
             "model": "Radar Storm Detector",
             "entry_type": "service",
         }
@@ -298,6 +299,21 @@ class RainViewerLastRadarTimeSensor(RainViewerBaseSensor):
         tz_name = cfg.get(CONF_TIMEZONE)
         if not tz_name and self.hass is not None:
             tz_name = self.hass.config.time_zone
+
+        # New format: GMT offset selector values like "GMT -6".
+        match = re.fullmatch(r"GMT\s*([+-])\s*(\d{1,2})", tz_name or "")
+        if match:
+            sign, hours = match.groups()
+            offset_hours = int(hours) * (1 if sign == "+" else -1)
+            return timezone(timedelta(hours=offset_hours))
+
+        # Backward-compatible format from earlier versions: "UTC-06:00".
+        match = re.fullmatch(r"UTC([+-])(\d{2}):00", tz_name or "")
+        if match:
+            sign, hours = match.groups()
+            offset_hours = int(hours) * (1 if sign == "+" else -1)
+            return timezone(timedelta(hours=offset_hours))
+
         try:
             return ZoneInfo(tz_name) if tz_name else timezone.utc
         except Exception:
