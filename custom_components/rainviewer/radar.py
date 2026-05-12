@@ -61,7 +61,7 @@ def _build_lut():
     return lut
 
 _LUT = _build_lut()
-_LUT_RGB = np.array([(r, g, b) for r, g, b, _ in _LUT], dtype=np.int16)
+_LUT_RGB = np.array([(r, g, b) for r, g, b, _ in _LUT], dtype=np.int32)
 _LUT_DBZ = np.array([dbz for _, _, _, dbz in _LUT], dtype=np.float32)
 
 
@@ -176,7 +176,7 @@ def analyze_frame(img: np.ndarray, home_px: tuple = (128, 128)):
     h, w, _ = img.shape
     total = h * w
 
-    rgba = img.astype(np.int16, copy=False)
+    rgba = img.astype(np.int32, copy=False)
     r = rgba[:, :, 0]
     g = rgba[:, :, 1]
     b = rgba[:, :, 2]
@@ -192,7 +192,7 @@ def analyze_frame(img: np.ndarray, home_px: tuple = (128, 128)):
     valid_sat = sat >= SATURATION_MIN
 
     diff    = rgb[:, :, None, :] - _LUT_RGB[None, None, :, :]
-    dist    = np.sum(diff * diff, axis=3, dtype=np.int32)
+    dist    = np.sum(diff * diff, axis=3, dtype=np.int64)
     lut_idx = np.argmin(dist, axis=2)
     min_dist = np.min(dist, axis=2)
     z = _LUT_DBZ[lut_idx]
@@ -258,7 +258,7 @@ def build_dbz_array(img: np.ndarray) -> np.ndarray | None:
         return None
 
     h, w, _ = img.shape
-    rgba = img.astype(np.int16, copy=False)
+    rgba = img.astype(np.int32, copy=False)
     r = rgba[:, :, 0]
     g = rgba[:, :, 1]
     b = rgba[:, :, 2]
@@ -273,7 +273,7 @@ def build_dbz_array(img: np.ndarray) -> np.ndarray | None:
     valid_sat = sat >= SATURATION_MIN
 
     diff     = rgb[:, :, None, :] - _LUT_RGB[None, None, :, :]
-    dist     = np.sum(diff * diff, axis=3, dtype=np.int32)
+    dist     = np.sum(diff * diff, axis=3, dtype=np.int64)
     lut_idx  = np.argmin(dist, axis=2)
     min_dist = np.min(dist, axis=2)
     z = _LUT_DBZ[lut_idx]
