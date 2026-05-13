@@ -124,7 +124,7 @@ class RainViewerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @staticmethod
     @callback
     def async_get_options_flow(config_entry):
-        return RainViewerOptionsFlow(config_entry)
+        return RainViewerOptionsFlow()
 
 
 class RainViewerOptionsFlow(config_entries.OptionsFlow):
