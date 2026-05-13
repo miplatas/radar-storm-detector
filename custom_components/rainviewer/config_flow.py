@@ -130,9 +130,6 @@ class RainViewerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 class RainViewerOptionsFlow(config_entries.OptionsFlow):
     """Options flow for RainViewer (updateable without restart)."""
 
-    def __init__(self, config_entry):
-        self.config_entry = config_entry
-
     @staticmethod
     def _normalize_timezone_option(tz_value):
         """Return a valid UTC offset option; fallback to default for legacy values."""
