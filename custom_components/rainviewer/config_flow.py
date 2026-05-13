@@ -184,20 +184,62 @@ class RainViewerOptionsFlow(config_entries.OptionsFlow):
             return result
 
         opts = self.config_entry.options or self.config_entry.data
-        current_tz = opts.get(CONF_TIMEZONE, DEFAULT_TIMEZONE)
-        current_map_style = opts.get(CONF_MAP_STYLE, DEFAULT_MAP_STYLE)
-        current_scan_interval = opts.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
-        current_rain_threshold = opts.get(CONF_RAIN_THRESHOLD, DEFAULT_RAIN_THRESHOLD)
-        current_hail_threshold = opts.get(CONF_HAIL_THRESHOLD, DEFAULT_HAIL_THRESHOLD)
-        current_dist_threshold = opts.get(CONF_DIST_THRESHOLD, DEFAULT_DIST_THRESHOLD)
-        current_gif_speed = opts.get(CONF_GIF_SPEED, DEFAULT_GIF_SPEED)
+        data = self.config_entry.data
+        
+        # Get all current values, preferring options over data
+        current_latitude = opts.get(CONF_LATITUDE, data.get(CONF_LATITUDE, self.hass.config.latitude))
+        current_longitude = opts.get(CONF_LONGITUDE, data.get(CONF_LONGITUDE, self.hass.config.longitude))
+        current_zoom = opts.get(CONF_ZOOM, data.get(CONF_ZOOM, DEFAULT_ZOOM))
+        current_tile_x = opts.get(CONF_TILE_X, data.get(CONF_TILE_X, DEFAULT_TILE_X))
+        current_tile_y = opts.get(CONF_TILE_Y, data.get(CONF_TILE_Y, DEFAULT_TILE_Y))
+        current_mqtt_broker = opts.get(CONF_MQTT_BROKER, data.get(CONF_MQTT_BROKER, ""))
+        current_mqtt_port = opts.get(CONF_MQTT_PORT, data.get(CONF_MQTT_PORT, DEFAULT_MQTT_PORT))
+        current_mqtt_username = opts.get(CONF_MQTT_USERNAME, data.get(CONF_MQTT_USERNAME, ""))
+        current_mqtt_password = opts.get(CONF_MQTT_PASSWORD, data.get(CONF_MQTT_PASSWORD, ""))
+        current_tz = opts.get(CONF_TIMEZONE, data.get(CONF_TIMEZONE, DEFAULT_TIMEZONE))
+        current_map_style = opts.get(CONF_MAP_STYLE, data.get(CONF_MAP_STYLE, DEFAULT_MAP_STYLE))
+        current_scan_interval = opts.get(CONF_SCAN_INTERVAL, data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL))
+        current_rain_threshold = opts.get(CONF_RAIN_THRESHOLD, data.get(CONF_RAIN_THRESHOLD, DEFAULT_RAIN_THRESHOLD))
+        current_hail_threshold = opts.get(CONF_HAIL_THRESHOLD, data.get(CONF_HAIL_THRESHOLD, DEFAULT_HAIL_THRESHOLD))
+        current_dist_threshold = opts.get(CONF_DIST_THRESHOLD, data.get(CONF_DIST_THRESHOLD, DEFAULT_DIST_THRESHOLD))
+        current_gif_speed = opts.get(CONF_GIF_SPEED, data.get(CONF_GIF_SPEED, DEFAULT_GIF_SPEED))
         current_draw_circles = opts.get(
             CONF_TEST_DRAW_PROXIMITY_CIRCLES,
-            DEFAULT_TEST_DRAW_PROXIMITY_CIRCLES,
+            data.get(CONF_TEST_DRAW_PROXIMITY_CIRCLES, DEFAULT_TEST_DRAW_PROXIMITY_CIRCLES),
         )
 
         try:
             schema = vol.Schema({
+                vol.Required(
+                    CONF_LATITUDE,
+                    default=self._normalize_float(current_latitude, self.hass.config.latitude),
+                ): vol.Coerce(float),
+                vol.Required(
+                    CONF_LONGITUDE,
+                    default=self._normalize_float(current_longitude, self.hass.config.longitude),
+                ): vol.Coerce(float),
+                vol.Optional(
+                    CONF_ZOOM,
+                    default=self._normalize_int(current_zoom, DEFAULT_ZOOM),
+                ): vol.All(vol.Coerce(int), vol.Range(min=1, max=18)),
+                vol.Optional(
+                    CONF_TILE_X,
+                    default=self._normalize_int(current_tile_x, DEFAULT_TILE_X),
+                ): vol.Coerce(int),
+                vol.Optional(
+                    CONF_TILE_Y,
+                    default=self._normalize_int(current_tile_y, DEFAULT_TILE_Y),
+                ): vol.Coerce(int),
+                vol.Optional(
+                    CONF_MQTT_BROKER,
+                    default=current_mqtt_broker,
+                ): str,
+                vol.Optional(
+                    CONF_MQTT_PORT,
+                    default=self._normalize_int(current_mqtt_port, DEFAULT_MQTT_PORT),
+                ): vol.All(vol.Coerce(int), vol.Range(min=1, max=65535)),
+                vol.Optional(CONF_MQTT_USERNAME, default=current_mqtt_username): str,
+                vol.Optional(CONF_MQTT_PASSWORD, default=current_mqtt_password): str,
                 vol.Optional(
                     CONF_SCAN_INTERVAL,
                     default=self._normalize_int(current_scan_interval, DEFAULT_SCAN_INTERVAL),
@@ -237,6 +279,15 @@ class RainViewerOptionsFlow(config_entries.OptionsFlow):
         except Exception:
             log.exception("RainViewer options flow: failed to build schema, using safe defaults")
             schema = vol.Schema({
+                vol.Required(CONF_LATITUDE, default=self.hass.config.latitude): vol.Coerce(float),
+                vol.Required(CONF_LONGITUDE, default=self.hass.config.longitude): vol.Coerce(float),
+                vol.Optional(CONF_ZOOM, default=DEFAULT_ZOOM): vol.All(vol.Coerce(int), vol.Range(min=1, max=18)),
+                vol.Optional(CONF_TILE_X, default=DEFAULT_TILE_X): vol.Coerce(int),
+                vol.Optional(CONF_TILE_Y, default=DEFAULT_TILE_Y): vol.Coerce(int),
+                vol.Optional(CONF_MQTT_BROKER, default=""): str,
+                vol.Optional(CONF_MQTT_PORT, default=DEFAULT_MQTT_PORT): vol.All(vol.Coerce(int), vol.Range(min=1, max=65535)),
+                vol.Optional(CONF_MQTT_USERNAME, default=""): str,
+                vol.Optional(CONF_MQTT_PASSWORD, default=""): str,
                 vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): vol.All(vol.Coerce(int), vol.Range(min=30, max=3600)),
                 vol.Optional(CONF_RAIN_THRESHOLD, default=DEFAULT_RAIN_THRESHOLD): vol.All(vol.Coerce(float), vol.Range(min=0.0, max=1.0)),
                 vol.Optional(CONF_HAIL_THRESHOLD, default=DEFAULT_HAIL_THRESHOLD): vol.All(vol.Coerce(float), vol.Range(min=0.0, max=1.0)),
