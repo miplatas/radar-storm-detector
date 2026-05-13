@@ -130,6 +130,10 @@ class RainViewerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 class RainViewerOptionsFlow(config_entries.OptionsFlow):
     """Options flow for RainViewer (updateable without restart)."""
 
+    def __init__(self):
+        """Initialize options flow."""
+        super().__init__()
+
     @staticmethod
     def _normalize_timezone_option(tz_value):
         """Return a valid UTC offset option; fallback to default for legacy values."""
@@ -171,7 +175,13 @@ class RainViewerOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_init(self, user_input=None):
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            # Save options and schedule a refresh of coordinator data
+            result = self.async_create_entry(title="", data=user_input)
+            # Force coordinator update after options change
+            coordinator = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
+            if coordinator:
+                self.hass.async_create_task(coordinator.async_refresh())
+            return result
 
         opts = self.config_entry.options or self.config_entry.data
         current_tz = opts.get(CONF_TIMEZONE, DEFAULT_TIMEZONE)
