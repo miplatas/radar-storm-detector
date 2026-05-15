@@ -21,8 +21,6 @@ A Home Assistant integration that detects storm conditions using **RainViewer** 
 
 These images are included in the repository as visual references for the integration:
 
-![Overview](https://user-images.githubusercontent.com/5878303/152332130-760cf616-5c40-4825-a482-bb8f1f0f5251.png)
-
 | File | Description | Preview |
 |---|---|---|
 | `images/sensors.png` | Example of the Home Assistant sensors created by the integration. | <img src="https://raw.githubusercontent.com/miplatas/rainviewer_hacs/main/images/sensors.png" alt="Sensors example" width="220" /> |
