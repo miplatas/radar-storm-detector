@@ -17,6 +17,17 @@ A Home Assistant integration that detects storm conditions using **RainViewer** 
 - 🕐 Configurable display timezone (GMT −12 to GMT +14)
 - 🔵 Optional proximity circles overlay on the radar image for debugging distance/bearing
 
+## 🖼️ Image examples
+
+These images are included in the repository as visual references for the integration:
+
+| File | Description | Preview |
+|---|---|---|
+| `images/sensors.png` | Example of the Home Assistant sensors created by the integration. | <img src="images/sensors.png" alt="Sensors example" width="220" /> |
+| `images/radar_RGBA_in.png` | Raw radar image in RGBA format before processing. | <img src="images/radar_RGBA_in.png" alt="Radar RGBA input" width="220" /> |
+| `images/radar_dbz_out.png` | Example of the radar processing output with an approximate dBZ result. | <img src="images/radar_dbz_out.png" alt="Radar dBZ output" width="220" /> |
+| `images/radar_data_final.jpg` | Final composed radar image used as the finished reference. | <img src="images/radar_data_final.jpg" alt="Final radar image" width="220" /> |
+
 ## 🌍 XYZ Tile Format
 
 This application utilizes the **XYZ tile format**, more commonly known as the **Slippy Map** coordinate system. It is the standard format used by OpenStreetMap, Google Maps, and most other web mapping platforms.
