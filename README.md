@@ -1,10 +1,4 @@
-![logo](images/logo.png)
-
 # 🌧 RainViewer Storm Detector — Home Assistant Integration
-
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
-[![GitHub release](https://img.shields.io/github/release/miplatas/rainviewer-hacs/releases)](https://github.com/miplatas/rainviewer-hacs/releases)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 A Home Assistant integration that detects storm conditions using **RainViewer** radar images and automatically publishes data to **MQTT**.
 
@@ -15,9 +9,13 @@ A Home Assistant integration that detects storm conditions using **RainViewer** 
 - 📡 Real-time radar image analysis (RainViewer API — free, no API key required)
 - ⚡ Automatic publishing to MQTT (`rainviewer/status` and `rainviewer/alert`)
 - 🏠 Sensors created automatically in Home Assistant — no YAML needed
-- 🔧 Fully configurable from the UI (no `configuration.yaml` editing required)
+- 🔧 Fully configurable from the UI (no `configuration.yaml` editing required), including live options update without restart
 - 🌍 Radar tile calculated automatically from XYZ tile format
-- 📊 14 state sensors + 4 binary sensors
+- 📊 14 state sensors + 4 binary sensors + 3 cameras
+- 🎞️ Animated GIF camera with configurable frame speed and a rolling buffer of the last analyzed frames
+- 🗺️ Three map base styles: **Day** (OpenStreetMap), **Night** (CartoDB dark), **Satellite** (ArcGIS)
+- 🕐 Configurable display timezone (GMT −12 to GMT +14)
+- 🔵 Optional proximity circles overlay on the radar image for debugging distance/bearing
 
 ## 🌍 XYZ Tile Format
 
@@ -67,17 +65,23 @@ In this specific example (`7/28/54.png`), the coordinates break down as follows:
 |---|---|---|
 | Latitude | Your location latitude | HA location |
 | Longitude | Your location longitude | HA location |
-| Zoom | Radar zoom level (6–8) | 7 |
-| Tile X | Radar tile X (auto-calculated) | auto |
-| Tile Y | Radar tile Y (auto-calculated) | auto |
+| Zoom | Radar zoom level (1–18) | 7 |
+| Tile X | Radar tile X (auto-calculated from lat/lon/zoom) | auto |
+| Tile Y | Radar tile Y (auto-calculated from lat/lon/zoom) | auto |
 | MQTT Broker | Broker IP or hostname | — |
-| MQTT Port | Broker port | 1883 |
+| MQTT Port | Broker port (1–65535) | 1883 |
 | MQTT Username | (optional) | — |
 | MQTT Password | (optional) | — |
-| Scan interval (s) | How often to analyze | 300 |
-| Rain threshold | Minimum pixel fraction for rain | 0.005 |
-| Hail threshold | Minimum pixel fraction for hail | 0.001 |
-| Alert distance | Maximum distance in pixels | 30 |
+| Scan interval (s) | How often to analyze (30–3600) | 600 |
+| Rain threshold | Minimum pixel fraction for rain (0.0–1.0) | 0.005 |
+| Hail threshold | Minimum pixel fraction for hail (0.0–1.0) | 0.001 |
+| Alert distance | Maximum distance in pixels for alert (1–1000) | 30 |
+| GIF speed (ms) | Milliseconds per frame in the animated camera (100–5000) | 500 |
+| Map style | Base map: `day`, `night`, or `satellite` | day |
+| Timezone | Display timezone for the camera footer (GMT −12 to GMT +14) | GMT −6 |
+| Proximity circles | Draw debug distance/bearing circles on the radar image | off |
+
+All options can be updated at any time from **Settings → Devices & Services → RainViewer Storm Detector → Configure** without restarting Home Assistant.
 
 ---
 
@@ -85,36 +89,38 @@ In this specific example (`7/28/54.png`), the coordinates break down as follows:
 
 ### State sensors (`sensor.*`)
 
+| Entity | Description | Unit | Extra attributes |
+|---|---|---|---|
+| `sensor.rainviewer_alert_level` | Alert level: `none` / `watch` / `warning` / `emergency` | — | `alert_message`, `approaching` |
+| `sensor.rainviewer_alert_message` | Human-readable alert description | — | — |
+| `sensor.rainviewer_rain_coverage` | % of pixels with rain (light + moderate) | % | — |
+| `sensor.rainviewer_heavy_rain_coverage` | % of pixels with heavy rain | % | — |
+| `sensor.rainviewer_hail_coverage` | % of pixels with hail | % | — |
+| `sensor.rainviewer_rain_trend` | Rain trend between frames (positive = increasing) | % | — |
+| `sensor.rainviewer_hail_trend` | Hail trend between frames | % | — |
+| `sensor.rainviewer_storm_distance` | Mean distance to nearest precipitation (pixels) | px | `bearing`, `dist_max`, `approach_vel`, `core_growth`, `approaching` |
+| `sensor.rainviewer_dbz_mean` | Mean dBZ of the latest frame | dBZ | — |
+| `sensor.rainviewer_dbz_max` | Max dBZ of the latest frame | dBZ | — |
+| `sensor.rainviewer_storm_approach_velocity` | Radial velocity toward home (px/frame; negative = approaching) | px/frame | — |
+| `sensor.rainviewer_storm_bearing` | Compass bearing to nearest storm (0 = N, 90 = E, 180 = S, 270 = W) | ° | — |
+| `sensor.rainviewer_last_radar_image_url` | PNG URL of the last analyzed radar frame | — | `url`, `image_url` |
+| `sensor.rainviewer_last_radar_time` | Timestamp of the last radar frame (localized) | — | — |
+
+### Cameras (`camera.*`)
+
 | Entity | Description |
 |---|---|
-| `sensor.rainviewer_alert_level` | Alert level: `none` / `watch` / `warning` / `emergency` |
-| `sensor.rainviewer_alert_message` | Human-readable alert description |
-| `sensor.rainviewer_rain_coverage` | % of pixels with rain |
-| `sensor.rainviewer_heavy_rain_coverage` | % of pixels with heavy rain |
-| `sensor.rainviewer_hail_coverage` | % of pixels with hail |
-| `sensor.rainviewer_rain_trend` | Rain trend (positive = increasing) |
-| `sensor.rainviewer_hail_trend` | Hail trend |
-| `sensor.rainviewer_storm_distance` | Estimated storm distance (pixels) |
-| `sensor.rainviewer_dbz_mean` | Mean dBZ of the last frame |
-| `sensor.rainviewer_dbz_max` | Max dBZ of the last frame |
-| `sensor.rainviewer_storm_movement_x` | Horizontal storm movement vector |
-| `sensor.rainviewer_storm_movement_y` | Vertical storm movement vector |
-| `sensor.rainviewer_last_radar_image_url` | PNG URL of the last analyzed radar frame |
-| `sensor.rainviewer_last_radar_time` | Human-readable timestamp of the last radar frame |
-
-### Camera (`camera.*`)
-
-| Entity | Description |
-|---|---|
-| `camera.rainviewer_radar_image` | Composite image: OSM map + radar overlay + home icon. Keeps a buffer of the last N analyzed frames. |
+| `camera.rainviewer_radar_image` | **Animated GIF**: OSM/Night/Satellite map + radar overlay + home marker + optional proximity circles + dBZ legend + timestamp footer. Buffers the last 6 analyzed frames. Attributes: `history` (list of timestamps + URLs), `frames_in_buffer`. |
+| `camera.rainviewer_radar_color_dbz` | **Static PNG**: Latest raw radar tile in original RainViewer colors with a dBZ scale bar on the right. |
+| `camera.rainviewer_radar_dbz_grayscale` | **Static PNG**: Latest radar tile converted to grayscale proportional to dBZ intensity, with a grayscale dBZ scale bar on the right. |
 
 ### Binary sensors (`binary_sensor.*`)
 
 | Entity | Description |
 |---|---|
-| `binary_sensor.rainviewer_rain_detected` | `on` when rain is detected |
-| `binary_sensor.rainviewer_hail_detected` | `on` when hail is detected |
-| `binary_sensor.rainviewer_storm_approaching` | `on` when storm is approaching |
+| `binary_sensor.rainviewer_rain_detected` | `on` when alert level is `watch`, `warning`, or `emergency` |
+| `binary_sensor.rainviewer_hail_detected` | `on` when hail pixel fraction > 0.001. Attribute: `hail_coverage_pct` |
+| `binary_sensor.rainviewer_storm_approaching` | `on` when the storm is moving toward your location |
 | `binary_sensor.rainviewer_emergency_alert` | `on` on emergency alert |
 
 ---
@@ -135,10 +141,17 @@ In this specific example (`7/28/54.png`), the coordinates break down as follows:
   "alert": "warning",
   "alert_msg": "Heavy rain approaching",
   "last_radar_url": "https://tilecache.rainviewer.com/.../256/7/28/54/8/1_1.png",
-  "last_radar_time": "2025-05-01 14:30:00 UTC",
+  "last_radar_time": "2025-05-01 14:30:00 GMT -6",
   "current": {"rain": 0.012, "hail": 0.002, "heavy": 0.008},
   "trend": {"rain": 0.003, "hail": 0.001},
-  "movement": {"vx": -1.2, "vy": 0.8, "distance": 22.5, "approaching": true},
+  "proximity": {
+    "dist_mean": 22.5,
+    "dist_max": 18.0,
+    "bearing_mean": 75.3,
+    "approach_vel": -1.2,
+    "core_growth": 0.4,
+    "approaching": true
+  },
   "frames": [...]
 }
 ```
@@ -171,6 +184,16 @@ automation:
 | `watch` | Moderate rain detected |
 | `warning` | Heavy rain or hail in the region |
 | `emergency` | Hail or heavy rain approaching your location |
+
+---
+
+## 🗺️ Map styles
+
+| Style | Tile source |
+|---|---|
+| `day` | OpenStreetMap (standard) |
+| `night` | CartoDB Dark Matter |
+| `satellite` | ArcGIS World Imagery |
 
 ---
 

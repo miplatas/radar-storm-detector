@@ -180,14 +180,6 @@ def _build_base_image(osm_url: str, radar_url: str,
         base = Image.alpha_composite(base, radar)
         radar.close()
 
-    draw = ImageDraw.Draw(base, "RGBA")
-    cx, cy = _lat_lon_to_pixel(lat, lon, tile_x, tile_y, zoom, tile_size)
-    cx = max(5, min(tile_size - 5, cx))
-    cy = max(5, min(tile_size - 5, cy))
-    rv = 5
-    draw.ellipse([cx - rv, cy - rv, cx + rv, cy + rv],
-                 fill=(220, 30, 30, 230), outline=(255, 255, 255, 255), width=2)
-
     return base.convert("RGB")
 
 
@@ -210,6 +202,33 @@ def _apply_hud(base_rgb: Image.Image, timestamp,
 
     bar_h    = 6
     footer_h = 30
+
+    # Layer: home marker (casa)
+    if home_px is not None:
+        hx = max(5, min(tile_size - 5, int(home_px[0])))
+        hy = max(5, min(tile_size - 5, int(home_px[1])))
+        rv = 5
+        draw.ellipse([hx - rv, hy - rv, hx + rv, hy + rv],
+                     fill=(220, 30, 30, 230), outline=(255, 255, 255, 255), width=2)
+
+    # Layer: circles and bearing line
+    if draw_test_circles and home_px is not None:
+        hx = max(0, min(tile_size - 1, int(home_px[0])))
+        hy = max(0, min(tile_size - 1, int(home_px[1])))
+
+        if dist_mean is not None and dist_mean >= 0:
+            r = int(round(dist_mean))
+            draw.ellipse([hx - r, hy - r, hx + r, hy + r], outline=(0, 255, 255, 220), width=2)
+
+        if dist_max is not None and dist_max >= 0:
+            r = int(round(dist_max))
+            draw.ellipse([hx - r, hy - r, hx + r, hy + r], outline=(255, 80, 255, 220), width=2)
+
+        if bearing_mean is not None and dist_mean is not None and dist_mean >= 0:
+            ang = math.radians(float(bearing_mean))
+            ex = int(round(hx + dist_mean * math.sin(ang)))
+            ey = int(round(hy - dist_mean * math.cos(ang)))
+            draw.line([(hx, hy), (ex, ey)], fill=(255, 255, 255, 230), width=2)
 
     # Progress bar
     draw.rectangle([0, 0, tile_size, bar_h + 2], fill=(0, 0, 0, 120))
@@ -255,27 +274,7 @@ def _apply_hud(base_rgb: Image.Image, timestamp,
             draw.text((14, y0), str(dbz_val), fill=(255, 255, 255, 230), font=_FONT_TINY)
 
     if draw_test_circles and home_px is not None:
-        hx = max(0, min(tile_size - 1, int(home_px[0])))
-        hy = max(0, min(tile_size - 1, int(home_px[1])))
-
-        # Distance to the dBZ >= mean front
-        if dist_mean is not None and dist_mean >= 0:
-            r = int(round(dist_mean))
-            draw.ellipse([hx - r, hy - r, hx + r, hy + r], outline=(0, 255, 255, 220), width=2)
-
-        # Distance to the dBZ >= max core
-        if dist_max is not None and dist_max >= 0:
-            r = int(round(dist_max))
-            draw.ellipse([hx - r, hy - r, hx + r, hy + r], outline=(255, 80, 255, 220), width=2)
-
-        # Bearing (bearing compass: 0=N, 90=E)
-        if bearing_mean is not None and dist_mean is not None and dist_mean >= 0:
-            ang = math.radians(float(bearing_mean))
-            ex = int(round(hx + dist_mean * math.sin(ang)))
-            ey = int(round(hy - dist_mean * math.cos(ang)))
-            draw.line([(hx, hy), (ex, ey)], fill=(255, 255, 255, 230), width=2)
-
-        draw.text((6, tile_size - footer_h - 12), "TEST CIRCLES", fill=(255, 255, 0, 230), font=_FONT_TINY)
+        draw.text((6, tile_size - footer_h - 12), "CIRCLE OK", fill=(255, 255, 0, 230), font=_FONT_TINY)
 
     return img.convert("RGB")
 
