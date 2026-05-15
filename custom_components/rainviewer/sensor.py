@@ -271,20 +271,31 @@ class RainViewerMovementVySensor(RainViewerBaseSensor):
 
 
 class RainViewerLastRadarUrlSensor(RainViewerBaseSensor):
-    """URL of the latest analyzed radar PNG frame."""
+    """Latest RainViewer frame identifier with URL in attributes."""
 
     def __init__(self, coordinator, entry):
-        super().__init__(coordinator, entry, "last_radar_url", "Last Radar Image URL",
+        super().__init__(coordinator, entry, "last_radar_url", "Last Frame",
                          "mdi:radar")
+
+    @staticmethod
+    def _extract_frame_id(url: str | None) -> str | None:
+        if not url:
+            return None
+        match = re.search(r"/radar/([^/]+)/", url)
+        return match.group(1) if match else None
 
     @property
     def native_value(self):
-        return self._data().get("last_radar_url")
+        return self._extract_frame_id(self._data().get("last_radar_url"))
 
     @property
     def extra_state_attributes(self):
         url = self._data().get("last_radar_url")
-        return {"url": url, "image_url": url}
+        return {
+            "frame_id": self._extract_frame_id(url),
+            "url": url,
+            "image_url": url,
+        }
 
 
 class RainViewerLastRadarTimeSensor(RainViewerBaseSensor):

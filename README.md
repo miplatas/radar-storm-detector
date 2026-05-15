@@ -103,7 +103,7 @@ All options can be updated at any time from **Settings → Devices & Services �
 | `sensor.rainviewer_dbz_max` | Max dBZ of the latest frame | dBZ | — |
 | `sensor.rainviewer_storm_approach_velocity` | Radial velocity toward home (px/frame; negative = approaching) | px/frame | — |
 | `sensor.rainviewer_storm_bearing` | Compass bearing to nearest storm (0 = N, 90 = E, 180 = S, 270 = W) | ° | — |
-| `sensor.rainviewer_last_radar_image_url` | PNG URL of the last analyzed radar frame | — | `url`, `image_url` |
+| `sensor.rainviewer_last_radar_image_url` | Last RainViewer frame ID (for example `c9c58489641f`) | — | `frame_id`, `url`, `image_url` |
 | `sensor.rainviewer_last_radar_time` | Timestamp of the last radar frame (localized) | — | — |
 
 ### Cameras (`camera.*`)
