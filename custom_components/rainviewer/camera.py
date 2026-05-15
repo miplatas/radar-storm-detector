@@ -274,7 +274,7 @@ def _apply_hud(base_rgb: Image.Image, timestamp,
             draw.text((14, y0), str(dbz_val), fill=(255, 255, 255, 230), font=_FONT_TINY)
 
     if draw_test_circles and home_px is not None:
-        draw.text((6, tile_size - footer_h - 12), "CIRCLE OK", fill=(255, 255, 0, 230), font=_FONT_TINY)
+        draw.text((6, tile_size - footer_h - 12), "     C", fill=(255, 255, 0, 230), font=_FONT_TINY)
 
     return img.convert("RGB")
 
