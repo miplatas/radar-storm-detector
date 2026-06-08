@@ -1,4 +1,4 @@
-"""RainViewer Camera — composite image: OSM + radar RGBA + HUD."""
+"""Radar camera - composite image: OSM + radar RGBA + HUD."""
 
 from __future__ import annotations
 
@@ -98,7 +98,7 @@ def _fetch_image(url: str, is_osm: bool = False) -> Image.Image | None:
 
     headers = {}
     if is_osm:
-        headers["User-Agent"] = "RainViewerHA/1.2 (Home Assistant; github.com/miplatas/rainviewer_hacs)"
+        headers["User-Agent"] = "RadarStormDetectorHA/1.2 (Home Assistant; github.com/miplatas/radar-storm-detector)"
 
     content = cached
     if content is None:
@@ -297,7 +297,7 @@ class RainViewerCamera(CoordinatorEntity, Camera):
 
         self._entry = entry
         self._attr_name = "Radar Image"
-        self._attr_unique_id = f"rainviewer_{entry.entry_id}_camera"
+        self._attr_unique_id = f"radar_storm_detector_{entry.entry_id}_camera"
         self._attr_icon = "mdi:radar"
         self._attr_content_type = "image/gif"
 
@@ -440,7 +440,7 @@ class RainViewerCamera(CoordinatorEntity, Camera):
         with self._lock:
             self._current_image = gif
 
-        log.debug("RainViewer Camera: GIF %d frames @ %dms (%d bytes)",
+        log.debug("Radar Storm Detector camera: GIF %d frames @ %dms (%d bytes)",
                   len(self._history), self._gif_speed, len(gif) if gif else 0)
 
     def _build_gif(self) -> bytes | None:
@@ -626,7 +626,7 @@ class RainViewerColorScaleCamera(CoordinatorEntity, Camera):
         Camera.__init__(self)
         self._entry = entry
         self._attr_name = "Radar Color dBZ"
-        self._attr_unique_id = f"rainviewer_{entry.entry_id}_color_scale"
+        self._attr_unique_id = f"radar_storm_detector_{entry.entry_id}_color_scale"
         self._attr_icon = "mdi:palette"
         self._attr_content_type = "image/png"
         self._lock = Lock()
@@ -724,7 +724,7 @@ class RainViewerDbzGrayCamera(CoordinatorEntity, Camera):
         Camera.__init__(self)
         self._entry = entry
         self._attr_name = "Radar dBZ Grayscale"
-        self._attr_unique_id = f"rainviewer_{entry.entry_id}_dbz_gray"
+        self._attr_unique_id = f"radar_storm_detector_{entry.entry_id}_dbz_gray"
         self._attr_icon = "mdi:contrast-box"
         self._attr_content_type = "image/png"
         self._lock = Lock()

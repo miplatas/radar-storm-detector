@@ -1,4 +1,4 @@
-"""RainViewer Storm Detector integration for Home Assistant."""
+"""Radar Storm Detector integration for Home Assistant."""
 
 import logging
 from homeassistant.config_entries import ConfigEntry
@@ -30,7 +30,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Listener to reload when options change.
     entry.async_on_unload(entry.add_update_listener(async_options_update_listener))
 
-    log.info("RainViewer Storm Detector started for (%.4f, %.4f)",
+    log.info("Radar Storm Detector started for (%.4f, %.4f)",
              config["latitude"], config["longitude"])
     return True
 

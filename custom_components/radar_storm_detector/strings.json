@@ -21,7 +21,7 @@
           "gif_speed": "GIF speed (ms per frame)",
           "map_style": "Base map style",
           "timezone": "Timezone offset (GMT)",
-          "test_draw_proximity_circles": "[TEST] Draw proximity circles on GIF"
+          "test_draw_proximity_circles": "Draw proximity circles on GIF"
         }
       }
     },
@@ -46,7 +46,7 @@
           "gif_speed": "GIF speed (ms per frame)",
           "map_style": "Base map style",
           "timezone": "Timezone offset (GMT)",
-          "test_draw_proximity_circles": "[TEST] Draw proximity circles on GIF"
+          "test_draw_proximity_circles": "Draw proximity circles on GIF"
         }
       }
     }

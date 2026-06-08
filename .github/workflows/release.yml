@@ -15,11 +15,11 @@ jobs:
       - name: Zip custom_components
         run: |
           cd custom_components
-          zip -r ../rainviewer.zip rainviewer/
+          zip -r ../radar_storm_detector.zip radar_storm_detector/
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          files: rainviewer.zip
+          files: radar_storm_detector.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

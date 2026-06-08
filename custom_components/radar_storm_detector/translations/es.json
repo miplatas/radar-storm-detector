@@ -21,7 +21,7 @@
           "gif_speed": "Velocidad del GIF (ms por frame)",
           "map_style": "Estilo del mapa base",
           "timezone": "Offset de zona horaria (GMT)",
-          "test_draw_proximity_circles": "[TEST] Dibujar círculos de proximidad en GIF"
+          "test_draw_proximity_circles": "Dibujar círculos de proximidad en GIF"
         }
       }
     },

@@ -1,4 +1,4 @@
-"""RainViewer Storm Detector binary sensors for Home Assistant."""
+"""RainViewer binary sensors for Home Assistant."""
 
 from __future__ import annotations
 
@@ -40,7 +40,7 @@ class RainViewerBaseBinary(CoordinatorEntity, BinarySensorEntity):
     def __init__(self, coordinator, entry, key, name, icon, device_class=None):
         super().__init__(coordinator)
         self._attr_name = name
-        self._attr_unique_id = f"rainviewer_{entry.entry_id}_{key}"
+        self._attr_unique_id = f"radar_storm_detector_{entry.entry_id}_{key}"
         self._attr_icon = icon
         self._attr_device_class = device_class
         self._entry = entry

@@ -1,6 +1,6 @@
-"""Constants for the RainViewer Storm Detector integration."""
+"""Constants for the Radar Storm Detector integration."""
 
-DOMAIN = "rainviewer"
+DOMAIN = "radar_storm_detector"
 PLATFORMS = ["sensor", "binary_sensor", "camera"]
 
 # Config keys
@@ -32,7 +32,7 @@ DEFAULT_DIST_THRESHOLD = 30
 DEFAULT_FRAMES_N = 6
 DEFAULT_GIF_SPEED = 500  # milliseconds per frame
 DEFAULT_MAP_STYLE = "day"
-DEFAULT_TEST_DRAW_PROXIMITY_CIRCLES = False
+DEFAULT_TEST_DRAW_PROXIMITY_CIRCLES = True
 DEFAULT_TIMEZONE = "GMT -6"
 
 # Base map styles (tile URL with placeholders {zoom}, {x}, {y})
@@ -48,8 +48,8 @@ TIMEZONE_OPTIONS = [f"GMT {offset:+d}" for offset in range(-12, 15)]
 RAINVIEWER_API = "https://api.rainviewer.com/public/weather-maps.json"
 
 # MQTT Topics
-MQTT_TOPIC_STATUS = "rainviewer/status"
-MQTT_TOPIC_ALERT = "rainviewer/alert"
+MQTT_TOPIC_STATUS = "radar_storm_detector/status"
+MQTT_TOPIC_ALERT = "radar_storm_detector/alert"
 
 # Alert levels
 ALERT_NONE = "none"

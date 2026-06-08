@@ -1,4 +1,4 @@
-"""Config Flow for RainViewer Storm Detector."""
+"""Config Flow for Radar Storm Detector."""
 
 import logging
 import math
@@ -44,7 +44,7 @@ log = logging.getLogger(__name__)
 
 
 class RainViewerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Configuration flow for RainViewer."""
+    """Configuration flow for Radar Storm Detector."""
 
     VERSION = 1
 
@@ -82,7 +82,7 @@ class RainViewerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
                 errors["base"] = "invalid_location"
             else:
-                await self.async_set_unique_id(f"rainviewer_{lat}_{lon}")
+                await self.async_set_unique_id(f"radar_storm_detector_{lat}_{lon}")
                 self._abort_if_unique_id_configured()
                 return self.async_create_entry(
                     title=f"Storm Detector ({lat:.4f}, {lon:.4f})",
@@ -128,7 +128,7 @@ class RainViewerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class RainViewerOptionsFlow(config_entries.OptionsFlow):
-    """Options flow for RainViewer (updateable without restart)."""
+    """Options flow for Radar Storm Detector (updateable without restart)."""
 
     def __init__(self):
         """Initialize options flow."""

@@ -54,19 +54,19 @@ class RainViewerCoordinator(DataUpdateCoordinator):
         if self._mqtt_client is not None:
             return
 
-        client = mqtt.Client(client_id="ha-rainviewer", clean_session=True)
+        client = mqtt.Client(client_id="ha-radar-storm-detector", clean_session=True)
         if self.mqtt_user:
             client.username_pw_set(self.mqtt_user, self.mqtt_pass)
 
         def on_connect(c, userdata, flags, rc):
             if rc == 0:
-                log.info("RainViewer: MQTT connected to %s:%s", self.mqtt_broker, self.mqtt_port)
+                log.info("Radar Storm Detector: MQTT connected to %s:%s", self.mqtt_broker, self.mqtt_port)
             else:
-                log.warning("RainViewer: MQTT connection error rc=%s", rc)
+                log.warning("Radar Storm Detector: MQTT connection error rc=%s", rc)
 
         def on_disconnect(c, userdata, rc):
             if rc != 0:
-                log.warning("RainViewer: MQTT unexpectedly disconnected rc=%s", rc)
+                log.warning("Radar Storm Detector: MQTT unexpectedly disconnected rc=%s", rc)
 
         client.on_connect = on_connect
         client.on_disconnect = on_disconnect
@@ -76,7 +76,7 @@ class RainViewerCoordinator(DataUpdateCoordinator):
             client.loop_start()
             self._mqtt_client = client
         except Exception as e:
-            log.error("RainViewer: Could not connect to MQTT broker: %s", e)
+            log.error("Radar Storm Detector: Could not connect to MQTT broker: %s", e)
             self._mqtt_client = None
 
     def _publish(self, payload: dict, alert_level: str):
@@ -86,12 +86,12 @@ class RainViewerCoordinator(DataUpdateCoordinator):
         msg = json.dumps(payload, ensure_ascii=False)
         try:
             self._mqtt_client.publish(MQTT_TOPIC_STATUS, msg, qos=1, retain=True)
-            log.debug("RainViewer: published to %s", MQTT_TOPIC_STATUS)
+            log.debug("Radar Storm Detector: published to %s", MQTT_TOPIC_STATUS)
             if alert_level != "none":
                 self._mqtt_client.publish(MQTT_TOPIC_ALERT, msg, qos=1, retain=True)
-                log.info("RainViewer: alert [%s] published to %s", alert_level.upper(), MQTT_TOPIC_ALERT)
+                log.info("Radar Storm Detector: alert [%s] published to %s", alert_level.upper(), MQTT_TOPIC_ALERT)
         except Exception as e:
-            log.error("RainViewer: error publishing to MQTT: %s", e)
+            log.error("Radar Storm Detector: error publishing to MQTT: %s", e)
 
     # ------------------------------------------------------------------
     # UPDATE
@@ -115,7 +115,7 @@ class RainViewerCoordinator(DataUpdateCoordinator):
             raise UpdateFailed(f"Error analyzing radar: {e}") from e
 
         if result is None:
-            raise UpdateFailed("No RainViewer radar data was obtained")
+            raise UpdateFailed("No radar data was obtained")
 
         payload, alert_level = result
 
