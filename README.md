@@ -125,6 +125,11 @@ All options can be updated at any time from **Settings â†’ Devices & Services â†
 | `camera.radar_storm_detector_radar_color_dbz` | **Static PNG**: Latest raw radar tile in original Radar Storm Detector colors with a dBZ scale bar on the right. |
 | `camera.radar_storm_detector_radar_dbz_grayscale` | **Static PNG**: Latest radar tile converted to grayscale proportional to dBZ intensity, with a grayscale dBZ scale bar on the right. |
 
+Proximity circles legend on the animated GIF:
+- Blue/cyan circle: radius based on `dist_mean`, showing the distance to the nearest representative precipitation area (pixels with dBZ greater than or equal to the current mean dBZ).
+- Purple circle: radius based on `dist_max`, showing the distance to the nearest strongest precipitation core (pixels with dBZ greater than or equal to the current max dBZ).
+- White line: `bearing_mean` direction from your home marker to the nearest representative storm area.
+
 ### Binary sensors (`binary_sensor.*`)
 
 | Entity | Description |
