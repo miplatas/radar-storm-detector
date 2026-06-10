@@ -40,6 +40,7 @@ log = logging.getLogger(__name__)
 HISTORY_SIZE = DEFAULT_FRAMES_N
 TILE_SIZE = 256
 IMAGE_CACHE_MAX_ITEMS = 24
+EARTH_RADIUS_M = 6378137.0
 
 _IMAGE_CACHE_LOCK = Lock()
 _IMAGE_BYTES_CACHE: OrderedDict[str, bytes] = OrderedDict()
@@ -135,6 +136,16 @@ def _lat_lon_to_pixel(lat: float, lon: float, tile_x: int, tile_y: int,
     return px, py
 
 
+def _km_per_pixel(lat: float, zoom: int, tile_size: int = TILE_SIZE) -> float:
+    """Ground resolution in kilometers per pixel for XYZ/Web Mercator tiles."""
+    lat_rad = math.radians(lat)
+    meters_per_px = (
+        math.cos(lat_rad) * 2.0 * math.pi * EARTH_RADIUS_M /
+        (tile_size * (2 ** zoom))
+    )
+    return max(meters_per_px / 1000.0, 0.0)
+
+
 def _resolve_timezone(tz_name: str | None):
     if tz_name:
         match = re.fullmatch(r"GMT\s*([+-])\s*(\d{1,2})", tz_name)
@@ -189,6 +200,7 @@ def _apply_hud(base_rgb: Image.Image, timestamp,
                home_px: tuple[int, int] | None = None,
                dist_mean: float | None = None,
                dist_max: float | None = None,
+               km_per_px: float = 1.0,
                bearing_mean: float | None = None,
                target_tz=timezone.utc,
                tz_label: str = "UTC",
@@ -215,19 +227,21 @@ def _apply_hud(base_rgb: Image.Image, timestamp,
     if draw_test_circles and home_px is not None:
         hx = max(0, min(tile_size - 1, int(home_px[0])))
         hy = max(0, min(tile_size - 1, int(home_px[1])))
+        px_per_km = 1.0 / km_per_px if km_per_px > 0 else 0.0
 
         if dist_mean is not None and dist_mean >= 0:
-            r = int(round(dist_mean))
+            r = int(round(dist_mean * px_per_km))
             draw.ellipse([hx - r, hy - r, hx + r, hy + r], outline=(0, 255, 255, 220), width=2)
 
         if dist_max is not None and dist_max >= 0:
-            r = int(round(dist_max))
+            r = int(round(dist_max * px_per_km))
             draw.ellipse([hx - r, hy - r, hx + r, hy + r], outline=(255, 80, 255, 220), width=2)
 
         if bearing_mean is not None and dist_mean is not None and dist_mean >= 0:
             ang = math.radians(float(bearing_mean))
-            ex = int(round(hx + dist_mean * math.sin(ang)))
-            ey = int(round(hy - dist_mean * math.cos(ang)))
+            dist_mean_px = dist_mean * px_per_km
+            ex = int(round(hx + dist_mean_px * math.sin(ang)))
+            ey = int(round(hy - dist_mean_px * math.cos(ang)))
             draw.line([(hx, hy), (ex, ey)], fill=(255, 255, 255, 230), width=2)
 
     # Progress bar
@@ -433,6 +447,7 @@ class RainViewerCamera(CoordinatorEntity, Camera):
                     "radar_url":  radar_url,
                     "base_image": base_img,
                     "home_px":    home_px,
+                    "km_per_px":  _km_per_pixel(lat, zoom),
                     "meta":       frame_meta.get(timestamp, {}),
                 })
 
@@ -471,6 +486,7 @@ class RainViewerCamera(CoordinatorEntity, Camera):
                 home_px=f.get("home_px"),
                 dist_mean=meta.get("dist_mean"),
                 dist_max=meta.get("dist_max"),
+                km_per_px=f.get("km_per_px", 1.0),
                 bearing_mean=meta.get("bearing_mean"),
                 target_tz=target_tz,
                 tz_label=tz_label,

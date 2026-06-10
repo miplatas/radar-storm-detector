@@ -24,6 +24,8 @@ LUT_MAX_DIST2       = 2200
 PURPLE_LUT_MAX_DIST2 = 10000
 PURPLE_ALPHA_MIN    = 245
 PURPLE_BOOST_MIN_DBZ = 50
+EARTH_RADIUS_M = 6378137.0
+WEB_MERCATOR_TILE_SIZE = 256
 
 
 def _build_lut():
@@ -144,6 +146,16 @@ def _lat_lon_to_pixel_in_tile(lat: float, lon: float, tile_x: int, tile_y: int,
     lat_rad = math.radians(lat)
     gy = (1.0 - math.asinh(math.tan(lat_rad)) / math.pi) / 2.0 * n
     return ((gx - tile_x) * tile_size, (gy - tile_y) * tile_size)
+
+
+def _km_per_pixel(lat: float, zoom: int, tile_size: int = WEB_MERCATOR_TILE_SIZE) -> float:
+    """Ground resolution in kilometers per pixel for XYZ/Web Mercator tiles."""
+    lat_rad = math.radians(lat)
+    meters_per_px = (
+        math.cos(lat_rad) * 2.0 * math.pi * EARTH_RADIUS_M /
+        (tile_size * (2 ** zoom))
+    )
+    return max(meters_per_px / 1000.0, 0.0)
 
 
 def _nearest_storm(z_adj: np.ndarray, mask: np.ndarray,
@@ -329,7 +341,8 @@ def determine_alert(rain_now, hail_now, heavy_now, distance, rain_trend,
 
 
 def run_analysis(lat, lon, zoom, tile_x, tile_y, frames_n,
-                 rain_threshold, hail_threshold, dist_threshold):
+                 rain_threshold, hail_threshold, dist_threshold,
+                 frame_interval_seconds=600):
     """
     Runs full radar analysis for the given location.
     Returns (payload, alert_level) or None on failure.
@@ -347,6 +360,7 @@ def run_analysis(lat, lon, zoom, tile_x, tile_y, frames_n,
     selected = frames[-frames_n:]
 
     home_px = _lat_lon_to_pixel_in_tile(lat, lon, tile_x, tile_y, zoom)
+    km_per_px = _km_per_pixel(lat, zoom)
 
     results        = []
     rain_vals      = []
@@ -367,8 +381,11 @@ def run_analysis(lat, lon, zoom, tile_x, tile_y, frames_n,
         rain_vals.append(stat["rain"] + stat["heavy"])
         hail_vals.append(stat["hail"])
         heavy_vals.append(stat["heavy"])
-        dist_mean_vals.append(stat["dist_mean"])
-        dist_max_vals.append(stat["dist_max"])
+        dist_mean_km = stat["dist_mean"] * km_per_px if stat["dist_mean"] >= 0 else -1.0
+        dist_max_km = stat["dist_max"] * km_per_px if stat["dist_max"] >= 0 else -1.0
+
+        dist_mean_vals.append(dist_mean_km)
+        dist_max_vals.append(dist_max_km)
         bearing_vals.append(stat["bearing_mean"])
 
         results.append({
@@ -378,9 +395,9 @@ def run_analysis(lat, lon, zoom, tile_x, tile_y, frames_n,
             "hail":         round(stat["hail"],  5),
             "light":        round(stat["light"], 5),
             "dbz":          stat["dbz"],
-            "dist_mean":    stat["dist_mean"],
+            "dist_mean":    round(dist_mean_km, 2) if dist_mean_km >= 0 else -1,
             "bearing_mean": stat["bearing_mean"],
-            "dist_max":     stat["dist_max"],
+            "dist_max":     round(dist_max_km, 2) if dist_max_km >= 0 else -1,
             "bearing_max":  stat["bearing_max"],
         })
 
@@ -394,19 +411,23 @@ def run_analysis(lat, lon, zoom, tile_x, tile_y, frames_n,
     rain_trend = rain_vals[-1] - rain_vals[0] if len(rain_vals) > 1 else 0
     hail_trend = hail_vals[-1] - hail_vals[0] if len(hail_vals) > 1 else 0
 
-    # Approach velocity: px/frame on dist_mean (negative = approaching)
-    valid_dm = [(i, v) for i, v in enumerate(dist_mean_vals) if v >= 0]
-    approach_vel = (
-        (valid_dm[-1][1] - valid_dm[0][1]) / (valid_dm[-1][0] - valid_dm[0][0])
-        if len(valid_dm) >= 2 else 0.0
-    )
+    frames_per_hour = 3600.0 / frame_interval_seconds if frame_interval_seconds > 0 else 0.0
 
-    # Intense core growth: px/frame on dist_max (negative = approaching)
+    # Approach velocity: km/hour on dist_mean (negative = approaching)
+    valid_dm = [(i, v) for i, v in enumerate(dist_mean_vals) if v >= 0]
+    if len(valid_dm) >= 2:
+        vel_km_per_frame = (valid_dm[-1][1] - valid_dm[0][1]) / (valid_dm[-1][0] - valid_dm[0][0])
+        approach_vel = vel_km_per_frame * frames_per_hour
+    else:
+        approach_vel = 0.0
+
+    # Intense core growth: km/hour on dist_max (negative = approaching)
     valid_dx = [(i, v) for i, v in enumerate(dist_max_vals) if v >= 0]
-    core_growth = (
-        (valid_dx[-1][1] - valid_dx[0][1]) / (valid_dx[-1][0] - valid_dx[0][0])
-        if len(valid_dx) >= 2 else 0.0
-    )
+    if len(valid_dx) >= 2:
+        growth_km_per_frame = (valid_dx[-1][1] - valid_dx[0][1]) / (valid_dx[-1][0] - valid_dx[0][0])
+        core_growth = growth_km_per_frame * frames_per_hour
+    else:
+        core_growth = 0.0
 
     dist_now     = dist_mean_vals[-1] if dist_mean_vals else -1.0
     dist_max_now = dist_max_vals[-1]  if dist_max_vals  else -1.0
@@ -450,7 +471,7 @@ def run_analysis(lat, lon, zoom, tile_x, tile_y, frames_n,
 
     log.info(
         "Result -> Alert: [%s] | Rain: %.4f | Hail: %.4f | "
-        "Dist: %.1fpx | Bearing: %s° | Approach: %.2fpx/frame",
+        "Dist: %.1fkm | Bearing: %s° | Approach: %.2fkm/h",
         alert_level.upper(), rain_now, hail_now, dist_now,
         f"{bearing_now:.1f}" if bearing_now is not None else "—",
         approach_vel,

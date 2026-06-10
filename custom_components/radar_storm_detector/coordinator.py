@@ -35,15 +35,14 @@ class RainViewerCoordinator(DataUpdateCoordinator):
         self.mqtt_port = config.get("mqtt_port", 1883)
         self.mqtt_user = config.get("mqtt_username", "")
         self.mqtt_pass = config.get("mqtt_password", "")
+        self.scan_interval = config.get("scan_interval", 300)
         self._mqtt_client = None
-
-        scan_interval = config.get("scan_interval", 300)
 
         super().__init__(
             hass,
             log,
             name=DOMAIN,
-            update_interval=timedelta(seconds=scan_interval),
+            update_interval=timedelta(seconds=self.scan_interval),
         )
 
     # ------------------------------------------------------------------
@@ -110,6 +109,7 @@ class RainViewerCoordinator(DataUpdateCoordinator):
                 self.rain_threshold,
                 self.hail_threshold,
                 self.dist_threshold,
+                self.scan_interval,
             )
         except Exception as e:
             raise UpdateFailed(f"Error analyzing radar: {e}") from e

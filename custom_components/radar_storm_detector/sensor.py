@@ -187,11 +187,11 @@ class RainViewerHailTrendSensor(RainViewerBaseSensor):
 
 
 class RainViewerDistanceSensor(RainViewerBaseSensor):
-    """Estimated precipitation distance to the reference point (pixels)."""
+    """Estimated precipitation distance to the reference point (km)."""
 
     def __init__(self, coordinator, entry):
         super().__init__(coordinator, entry, "distance", "Storm Distance",
-                         "mdi:map-marker-distance", "px")
+                         "mdi:map-marker-distance", "km")
         self._attr_state_class = SensorStateClass.MEASUREMENT
 
     @property
@@ -244,11 +244,11 @@ class RainViewerDbzMaxSensor(RainViewerBaseSensor):
 
 
 class RainViewerMovementVxSensor(RainViewerBaseSensor):
-    """Storm approach velocity (px/frame; negative = approaching)."""
+    """Storm approach velocity (km/h; negative = approaching)."""
 
     def __init__(self, coordinator, entry):
         super().__init__(coordinator, entry, "vx", "Storm Approach Velocity",
-                         "mdi:arrow-collapse-down", "px/frame")
+                         "mdi:arrow-collapse-down", "km/h")
         self._attr_state_class = SensorStateClass.MEASUREMENT
 
     @property

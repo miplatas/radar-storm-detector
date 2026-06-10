@@ -86,7 +86,7 @@ In this specific example (`7/28/54.png`), the coordinates break down as follows:
 | Scan interval (s) | How often to analyze (30–3600) | 600 |
 | Rain threshold | Minimum pixel fraction for rain (0.0–1.0) | 0.005 |
 | Hail threshold | Minimum pixel fraction for hail (0.0–1.0) | 0.001 |
-| Alert distance | Maximum distance in pixels for alert (1–1000) | 30 |
+| Alert distance | Maximum distance in kilometers for alert (1–1000) | 30 |
 | GIF speed (ms) | Milliseconds per frame in the animated camera (100–5000) | 500 |
 | Map style | Base map: `day`, `night`, or `satellite` | day |
 | Timezone | Display timezone for the camera footer (GMT −12 to GMT +14) | GMT −6 |
@@ -109,10 +109,10 @@ All options can be updated at any time from **Settings → Devices & Services �
 | `sensor.radar_storm_detector_hail_coverage` | % of pixels with hail | % | — |
 | `sensor.radar_storm_detector_rain_trend` | Rain trend between frames (positive = increasing) | % | — |
 | `sensor.radar_storm_detector_hail_trend` | Hail trend between frames | % | — |
-| `sensor.radar_storm_detector_storm_distance` | Mean distance to nearest precipitation (pixels) | px | `bearing`, `dist_max`, `approach_vel`, `core_growth`, `approaching` |
+| `sensor.radar_storm_detector_storm_distance` | Mean distance to nearest precipitation (km) | km | `bearing`, `dist_max`, `approach_vel`, `core_growth`, `approaching` |
 | `sensor.radar_storm_detector_dbz_mean` | Mean dBZ of the latest frame | dBZ | — |
 | `sensor.radar_storm_detector_dbz_max` | Max dBZ of the latest frame | dBZ | — |
-| `sensor.radar_storm_detector_storm_approach_velocity` | Radial velocity toward home (px/frame; negative = approaching) | px/frame | — |
+| `sensor.radar_storm_detector_storm_approach_velocity` | Radial velocity toward home (km/h; negative = approaching) | km/h | — |
 | `sensor.radar_storm_detector_storm_bearing` | Compass bearing to nearest storm (0 = N, 90 = E, 180 = S, 270 = W) | ° | — |
 | `sensor.radar_storm_detector_last_radar_image_url` | Last Radar Storm Detector frame ID (for example `c9c58489641f`) | — | `frame_id`, `url`, `image_url` |
 | `sensor.radar_storm_detector_last_radar_time` | Timestamp of the last radar frame (localized) | — | — |
@@ -126,8 +126,8 @@ All options can be updated at any time from **Settings → Devices & Services �
 | `camera.radar_storm_detector_radar_dbz_grayscale` | **Static PNG**: Latest radar tile converted to grayscale proportional to dBZ intensity, with a grayscale dBZ scale bar on the right. |
 
 Proximity circles legend on the animated GIF:
-- Blue/cyan circle: radius based on `dist_mean`, showing the distance to the nearest representative precipitation area (pixels with dBZ greater than or equal to the current mean dBZ).
-- Purple circle: radius based on `dist_max`, showing the distance to the nearest strongest precipitation core (pixels with dBZ greater than or equal to the current max dBZ).
+- Blue/cyan circle: radius based on `dist_mean` (reported in km, rendered on map in pixels), showing the distance to the nearest representative precipitation area (pixels with dBZ greater than or equal to the current mean dBZ).
+- Purple circle: radius based on `dist_max` (reported in km, rendered on map in pixels), showing the distance to the nearest strongest precipitation core (pixels with dBZ greater than or equal to the current max dBZ).
 - White line: `bearing_mean` direction from your home marker to the nearest representative storm area.
 
 ### Binary sensors (`binary_sensor.*`)
