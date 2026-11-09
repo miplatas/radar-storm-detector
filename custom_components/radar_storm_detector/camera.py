@@ -11,6 +11,7 @@ from datetime import timedelta
 from threading import Lock
 import re
 from zoneinfo import ZoneInfo
+from urllib.parse import urlsplit, urlunsplit
 
 import requests
 from PIL import Image, ImageDraw, ImageFont
@@ -24,6 +25,9 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import (
     DOMAIN,
     DEFAULT_FRAMES_N,
+    DEFAULT_ZOOM,
+    MIN_ZOOM,
+    MAX_ZOOM,
     DEFAULT_GIF_SPEED,
     CONF_MAP_STYLE,
     CONF_TIMEZONE,
@@ -125,17 +129,6 @@ def _fetch_image(url: str, is_osm: bool = False) -> Image.Image | None:
         return None
 
 
-def _lat_lon_to_pixel(lat: float, lon: float, tile_x: int, tile_y: int,
-                      zoom: int, tile_size: int = TILE_SIZE) -> tuple[int, int]:
-    n = 2 ** zoom
-    gx = (lon + 180.0) / 360.0 * n * tile_size
-    lat_rad = math.radians(lat)
-    gy = (1.0 - math.asinh(math.tan(lat_rad)) / math.pi) / 2.0 * n * tile_size
-    px = int(gx - tile_x * tile_size)
-    py = int(gy - tile_y * tile_size)
-    return px, py
-
-
 def _km_per_pixel(lat: float, zoom: int, tile_size: int = TILE_SIZE) -> float:
     """Ground resolution in kilometers per pixel for XYZ/Web Mercator tiles."""
     lat_rad = math.radians(lat)
@@ -168,30 +161,107 @@ def _resolve_timezone(tz_name: str | None):
     return timezone.utc, "UTC"
 
 
-def _build_base_image(osm_url: str, radar_url: str,
-                      lat: float, lon: float,
-                      tile_x: int, tile_y: int, zoom: int,
+def _radar_url_for_tile(radar_url: str, zoom: int,
+                        tile_x: int, tile_y: int) -> str | None:
+    """Return a RainViewer radar URL for another tile in the same frame."""
+    parsed = urlsplit(radar_url)
+    path_parts = parsed.path.split("/")
+    if (
+        len(path_parts) < 5
+        or path_parts[-5] != str(zoom)
+        or path_parts[-2:] != ["8", "1_1.png"]
+    ):
+        log.error("Cannot center radar image: unexpected RainViewer tile URL %s", radar_url)
+        return None
+
+    path_parts[-4] = str(tile_x)
+    path_parts[-3] = str(tile_y)
+    return urlunsplit(parsed._replace(path="/".join(path_parts)))
+
+
+def _build_base_image(osm_url_template: str, radar_url: str,
+                      lat: float, lon: float, zoom: int,
                       tile_size: int = TILE_SIZE) -> Image.Image | None:
     """
-    Downloads OSM + radar and returns a composed RGB image.
-    Called ONLY ONCE per new frame - the result is cached.
+    Composes neighboring map and radar tiles, cropping the result around home.
     """
-    base = _fetch_image(osm_url, is_osm=True)
-    if base is None:
-        base = Image.new("RGBA", (tile_size, tile_size), (200, 200, 200, 255))
-    else:
-        base = base.resize((tile_size, tile_size)).convert("RGBA")
+    world_tiles = 2 ** zoom
+    lat = max(-85.05112878, min(85.05112878, lat))
+    world_px_x = (lon + 180.0) / 360.0 * world_tiles * tile_size
+    lat_rad = math.radians(lat)
+    world_px_y = (
+        (1.0 - math.asinh(math.tan(lat_rad)) / math.pi)
+        / 2.0 * world_tiles * tile_size
+    )
+    crop_left = int(round(world_px_x)) - tile_size // 2
+    crop_top = int(round(world_px_y)) - tile_size // 2
+    first_tile_x = math.floor(crop_left / tile_size)
+    first_tile_y = math.floor(crop_top / tile_size)
+    last_tile_x = math.floor((crop_left + tile_size - 1) / tile_size)
+    last_tile_y = math.floor((crop_top + tile_size - 1) / tile_size)
 
-    radar = _fetch_image(radar_url)
-    if radar is not None:
-        radar = radar.resize((tile_size, tile_size)).convert("RGBA")
-        r, g, b, a = radar.split()
-        a = a.point(lambda v: int(v * 0.85))
-        radar = Image.merge("RGBA", (r, g, b, a))
-        base = Image.alpha_composite(base, radar)
-        radar.close()
+    first_radar_url = _radar_url_for_tile(
+        radar_url, zoom, first_tile_x % world_tiles, first_tile_y
+    )
+    if first_radar_url is None:
+        return None
 
-    return base.convert("RGB")
+    mosaic_size = (
+        (last_tile_x - first_tile_x + 1) * tile_size,
+        (last_tile_y - first_tile_y + 1) * tile_size,
+    )
+    base = Image.new("RGBA", mosaic_size, (200, 200, 200, 255))
+    radar_mosaic = Image.new("RGBA", mosaic_size, (0, 0, 0, 0))
+
+    for tile_y in range(first_tile_y, last_tile_y + 1):
+        if not 0 <= tile_y < world_tiles:
+            continue
+        for tile_x in range(first_tile_x, last_tile_x + 1):
+            wrapped_x = tile_x % world_tiles
+            position = (
+                (tile_x - first_tile_x) * tile_size,
+                (tile_y - first_tile_y) * tile_size,
+            )
+            map_tile = _fetch_image(
+                osm_url_template.format(zoom=zoom, x=wrapped_x, y=tile_y),
+                is_osm=True,
+            )
+            if map_tile is not None:
+                resized_map = map_tile.resize((tile_size, tile_size)).convert("RGBA")
+                map_tile.close()
+                base.alpha_composite(resized_map, position)
+                resized_map.close()
+
+            radar_tile_url = _radar_url_for_tile(
+                radar_url, zoom, wrapped_x, tile_y
+            )
+            if radar_tile_url is None:
+                base.close()
+                radar_mosaic.close()
+                return None
+            radar_tile = _fetch_image(radar_tile_url)
+            if radar_tile is not None:
+                resized_radar = radar_tile.resize((tile_size, tile_size)).convert("RGBA")
+                radar_tile.close()
+                alpha = resized_radar.getchannel("A")
+                adjusted_alpha = alpha.point(lambda value: int(value * 0.85))
+                resized_radar.putalpha(adjusted_alpha)
+                radar_mosaic.alpha_composite(resized_radar, position)
+                alpha.close()
+                adjusted_alpha.close()
+                resized_radar.close()
+
+    base.alpha_composite(radar_mosaic)
+    crop_box = (
+        crop_left - first_tile_x * tile_size,
+        crop_top - first_tile_y * tile_size,
+        crop_left - first_tile_x * tile_size + tile_size,
+        crop_top - first_tile_y * tile_size + tile_size,
+    )
+    centered = base.crop(crop_box).convert("RGB")
+    base.close()
+    radar_mosaic.close()
+    return centered
 
 
 def _apply_hud(base_rgb: Image.Image, timestamp,
@@ -204,6 +274,8 @@ def _apply_hud(base_rgb: Image.Image, timestamp,
                bearing_mean: float | None = None,
                target_tz=timezone.utc,
                tz_label: str = "UTC",
+               is_current_frame: bool = False,
+               map_style: str = DEFAULT_MAP_STYLE,
                tile_size: int = TILE_SIZE) -> Image.Image:
     """
     Applies HUD (progress bar + dBZ legend + footer) over a copy of base_rgb.
@@ -257,6 +329,8 @@ def _apply_hud(base_rgb: Image.Image, timestamp,
         ts_text = dt.strftime(f"%Y-%m-%d %H:%M {tz_label}")
     except Exception:
         ts_text = str(timestamp) if timestamp else "—"
+    if is_current_frame:
+        ts_text += " (now)"
     try:
         bbox = _FONT_BOLD.getbbox(ts_text)
         tw = bbox[2] - bbox[0]
@@ -265,14 +339,19 @@ def _apply_hud(base_rgb: Image.Image, timestamp,
     draw.text((max(0, (tile_size - tw) // 2), tile_size - footer_h + 2),
               ts_text, fill=(255, 255, 255, 255), font=_FONT_BOLD)
 
-    attr_text = "Map © OpenStreetMap  |  Radar © RainViewer"
+    if map_style == "night":
+        attr_text = "Map © queeniemella | Radar © RainViewer"
+        attr_font = _FONT_TINY
+    else:
+        attr_text = "Map © OpenStreetMap  |  Radar © RainViewer"
+        attr_font = _FONT_SMALL
     try:
-        bbox2 = _FONT_SMALL.getbbox(attr_text)
+        bbox2 = attr_font.getbbox(attr_text)
         aw = bbox2[2] - bbox2[0]
     except Exception:
         aw = len(attr_text) * 5
     draw.text((max(0, (tile_size - aw) // 2), tile_size - footer_h + 16),
-              attr_text, fill=(200, 200, 200, 200), font=_FONT_SMALL)
+              attr_text, fill=(200, 200, 200, 200), font=attr_font)
 
     # dBZ legend
     legend_top    = bar_h + 4
@@ -300,7 +379,7 @@ def _apply_hud(base_rgb: Image.Image, timestamp,
 class RainViewerCamera(CoordinatorEntity, Camera):
     """
     RainViewer camera with animated GIF.
-    - Downloads OSM + radar only once per new frame (caches RGB Image)
+    - Downloads neighboring OSM + radar tiles once per new frame (caches RGB Image)
     - _build_gif only applies HUD over cached images (no network)
     - Releases memory properly when closing frames
     """
@@ -317,6 +396,7 @@ class RainViewerCamera(CoordinatorEntity, Camera):
 
         config = {**entry.data, **entry.options}
         self._gif_speed: int = config.get("gif_speed", DEFAULT_GIF_SPEED)
+        self._map_style: str = config.get(CONF_MAP_STYLE, DEFAULT_MAP_STYLE)
         self._draw_test_circles: bool = config.get(
             CONF_TEST_DRAW_PROXIMITY_CIRCLES,
             DEFAULT_TEST_DRAW_PROXIMITY_CIRCLES,
@@ -358,6 +438,7 @@ class RainViewerCamera(CoordinatorEntity, Camera):
 
         config = {**self._entry.data, **self._entry.options}
         self._gif_speed = config.get("gif_speed", DEFAULT_GIF_SPEED)
+        self._map_style = config.get(CONF_MAP_STYLE, DEFAULT_MAP_STYLE)
         self._draw_test_circles = config.get(
             CONF_TEST_DRAW_PROXIMITY_CIRCLES,
             DEFAULT_TEST_DRAW_PROXIMITY_CIRCLES,
@@ -373,9 +454,7 @@ class RainViewerCamera(CoordinatorEntity, Camera):
                 super()._handle_coordinator_update()
                 return
 
-        zoom   = config.get("zoom",      7)
-        tile_x = config.get("tile_x",   28)
-        tile_y = config.get("tile_y",   54)
+        zoom   = min(MAX_ZOOM, max(MIN_ZOOM, int(config.get("zoom", DEFAULT_ZOOM))))
         lat    = config.get("latitude",  0.0)
         lon    = config.get("longitude", 0.0)
         cycle_ts = data.get("timestamp")
@@ -385,10 +464,7 @@ class RainViewerCamera(CoordinatorEntity, Camera):
             self._target_tz = resolved_tz
             self._tz_label = tz_label
         map_style = config.get(CONF_MAP_STYLE, DEFAULT_MAP_STYLE)
-        osm_url = MAP_TILE_URLS.get(map_style, MAP_TILE_URLS["day"]).format(
-            zoom=zoom, x=tile_x, y=tile_y
-        )
-        home_px = _lat_lon_to_pixel(lat, lon, tile_x, tile_y, zoom)
+        osm_url_template = MAP_TILE_URLS.get(map_style, MAP_TILE_URLS["day"])
 
         frame_meta = {}
         for fr in data.get("frames", []):
@@ -409,8 +485,7 @@ class RainViewerCamera(CoordinatorEntity, Camera):
             try:
                 await self.hass.async_add_executor_job(
                     self._fetch_and_store,
-                    osm_url, radar_url, last_time, lat, lon, tile_x, tile_y, zoom,
-                    home_px, frame_meta,
+                    osm_url_template, radar_url, last_time, lat, lon, zoom, frame_meta,
                 )
                 with self._lock:
                     self._last_render_url = radar_url
@@ -422,16 +497,16 @@ class RainViewerCamera(CoordinatorEntity, Camera):
         self.hass.async_create_task(_run_job())
         super()._handle_coordinator_update()
 
-    def _fetch_and_store(self, osm_url: str, radar_url: str, timestamp,
-                         lat: float, lon: float,
-                         tile_x: int, tile_y: int, zoom: int,
-                         home_px: tuple[int, int], frame_meta: dict) -> None:
+    def _fetch_and_store(self, osm_url_template: str, radar_url: str, timestamp,
+                         lat: float, lon: float, zoom: int, frame_meta: dict) -> None:
         """Fetches base only if radar_url is new, then rebuilds GIF."""
         with self._lock:
             already = any(f["radar_url"] == radar_url for f in self._history)
 
         if not already:
-            base_img = _build_base_image(osm_url, radar_url, lat, lon, tile_x, tile_y, zoom)
+            base_img = _build_base_image(
+                osm_url_template, radar_url, lat, lon, zoom
+            )
             if base_img is None:
                 return
             with self._lock:
@@ -446,7 +521,7 @@ class RainViewerCamera(CoordinatorEntity, Camera):
                     "timestamp":  timestamp,
                     "radar_url":  radar_url,
                     "base_image": base_img,
-                    "home_px":    home_px,
+                    "home_px":    (TILE_SIZE // 2, TILE_SIZE // 2),
                     "km_per_px":  _km_per_pixel(lat, zoom),
                     "meta":       frame_meta.get(timestamp, {}),
                 })
@@ -461,21 +536,22 @@ class RainViewerCamera(CoordinatorEntity, Camera):
     def _build_gif(self) -> bytes | None:
         """Builds GIF by applying HUD on cached images. No network."""
         with self._lock:
-            frames = list(self._history)
+            frames = [
+                frame for frame in self._history
+                if frame.get("base_image") is not None
+            ]
 
         if not frames:
             return None
 
         total = len(frames)
-        pil_frames = []
+        rgb_frames = []
         with self._lock:
             target_tz = self._target_tz
             tz_label = self._tz_label
 
         for i, f in enumerate(frames):
             base = f.get("base_image")
-            if base is None:
-                continue
             meta = f.get("meta", {})
             framed = _apply_hud(
                 base,
@@ -490,18 +566,37 @@ class RainViewerCamera(CoordinatorEntity, Camera):
                 bearing_mean=meta.get("bearing_mean"),
                 target_tz=target_tz,
                 tz_label=tz_label,
+                is_current_frame=(i == total - 1),
+                map_style=self._map_style,
             )
-            pil_frames.append(framed.convert("P", palette=Image.ADAPTIVE, colors=256))
+            rgb_frames.append(framed.convert("RGB"))
             framed.close()
 
-        if not pil_frames:
+        if not rgb_frames:
             return None
 
+        frame_width, frame_height = rgb_frames[0].size
+        palette_source = Image.new("RGB", (frame_width, frame_height * len(rgb_frames)))
+        for i, frame in enumerate(rgb_frames):
+            palette_source.paste(frame, (0, i * frame_height))
+        shared_palette = palette_source.quantize(colors=256, method=Image.Quantize.MEDIANCUT)
+        palette_source.close()
+
+        pil_frames = [
+            frame.quantize(palette=shared_palette, dither=Image.Dither.NONE)
+            for frame in rgb_frames
+        ]
+        shared_palette.close()
+        for frame in rgb_frames:
+            frame.close()
+
         buf = io.BytesIO()
+        durations = [self._gif_speed] * (len(pil_frames) - 1)
+        durations.append(self._gif_speed * 2)
         pil_frames[0].save(
             buf, format="GIF", save_all=True,
             append_images=pil_frames[1:],
-            loop=0, duration=self._gif_speed, optimize=False,
+            loop=0, duration=durations, optimize=False,
         )
         for f in pil_frames:
             try:
@@ -532,24 +627,19 @@ class RainViewerCamera(CoordinatorEntity, Camera):
             return None
 
         config = {**self._entry.data, **self._entry.options}
-        zoom   = config.get("zoom",      7)
-        tile_x = config.get("tile_x",   28)
-        tile_y = config.get("tile_y",   54)
+        zoom   = min(MAX_ZOOM, max(MIN_ZOOM, int(config.get("zoom", DEFAULT_ZOOM))))
         lat    = config.get("latitude",  0.0)
         lon    = config.get("longitude", 0.0)
         map_style = config.get(CONF_MAP_STYLE, DEFAULT_MAP_STYLE)
-        osm_url = MAP_TILE_URLS.get(map_style, MAP_TILE_URLS["day"]).format(
-            zoom=zoom, x=tile_x, y=tile_y
-        )
+        osm_url_template = MAP_TILE_URLS.get(map_style, MAP_TILE_URLS["day"])
 
         with self._lock:
             self._job_running = True
         try:
             await self.hass.async_add_executor_job(
                 self._fetch_and_store,
-                osm_url, radar_url, data.get("last_radar_time"),
-                lat, lon, tile_x, tile_y, zoom,
-                _lat_lon_to_pixel(lat, lon, tile_x, tile_y, zoom),
+                osm_url_template, radar_url, data.get("last_radar_time"),
+                lat, lon, zoom,
                 {
                     fr.get("timestamp"): {
                         "dist_mean": fr.get("dist_mean"),
@@ -622,8 +712,6 @@ def _add_dbz_scale_bar(base: Image.Image, gray: bool = False) -> Image.Image:
         ty = int(y0 + (1.0 - tick / 75.0) * bar_range)
         draw.line([(bar_x1 + 1, ty), (bar_x1 + 5, ty)], fill=outline)
         draw.text((bar_x1 + 7, ty - 5), str(tick), fill=outline, font=_FONT_TINY)
-    draw.text((bar_x0, 0), "dBZ", fill=outline, font=_FONT_BOLD)
-
     return canvas
 
 

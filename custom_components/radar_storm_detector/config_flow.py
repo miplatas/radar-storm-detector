@@ -13,7 +13,6 @@ from .const import (
     CONF_MQTT_PORT,
     CONF_MQTT_USERNAME,
     CONF_MQTT_PASSWORD,
-    CONF_SCAN_INTERVAL,
     CONF_ZOOM,
     CONF_TILE_X,
     CONF_TILE_Y,
@@ -25,7 +24,6 @@ from .const import (
     CONF_TEST_DRAW_PROXIMITY_CIRCLES,
     CONF_TIMEZONE,
     DEFAULT_MQTT_PORT,
-    DEFAULT_SCAN_INTERVAL,
     DEFAULT_ZOOM,
     DEFAULT_TILE_X,
     DEFAULT_TILE_Y,
@@ -36,6 +34,8 @@ from .const import (
     DEFAULT_MAP_STYLE,
     DEFAULT_TEST_DRAW_PROXIMITY_CIRCLES,
     DEFAULT_TIMEZONE,
+    MIN_ZOOM,
+    MAX_ZOOM,
     MAP_STYLE_OPTIONS,
     TIMEZONE_OPTIONS,
 )
@@ -92,14 +92,15 @@ class RainViewerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         schema = vol.Schema({
             vol.Required(CONF_LATITUDE,  default=ha_lat):  vol.Coerce(float),
             vol.Required(CONF_LONGITUDE, default=ha_lon):  vol.Coerce(float),
-            vol.Required(CONF_ZOOM,    default=DEFAULT_ZOOM):    vol.Coerce(int),
+            vol.Required(CONF_ZOOM,    default=DEFAULT_ZOOM):    vol.All(
+                vol.Coerce(int), vol.Range(min=MIN_ZOOM, max=MAX_ZOOM)
+            ),
             vol.Required(CONF_TILE_X,  default=suggested_x):    vol.Coerce(int),
             vol.Required(CONF_TILE_Y,  default=suggested_y):    vol.Coerce(int),
             vol.Required(CONF_MQTT_BROKER, default=""):    str,
             vol.Optional(CONF_MQTT_PORT,    default=DEFAULT_MQTT_PORT):    vol.All(vol.Coerce(int), vol.Range(min=1, max=65535)),
             vol.Optional(CONF_MQTT_USERNAME, default=""):  str,
             vol.Optional(CONF_MQTT_PASSWORD, default=""):  str,
-            vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): vol.All(vol.Coerce(int), vol.Range(min=30, max=3600)),
             vol.Optional(CONF_RAIN_THRESHOLD, default=DEFAULT_RAIN_THRESHOLD): vol.All(vol.Coerce(float), vol.Range(min=0.0, max=1.0)),
             vol.Optional(CONF_HAIL_THRESHOLD, default=DEFAULT_HAIL_THRESHOLD): vol.All(vol.Coerce(float), vol.Range(min=0.0, max=1.0)),
             vol.Optional(CONF_DIST_THRESHOLD, default=DEFAULT_DIST_THRESHOLD): vol.All(vol.Coerce(int), vol.Range(min=1, max=1000)),
@@ -198,7 +199,6 @@ class RainViewerOptionsFlow(config_entries.OptionsFlow):
         current_mqtt_password = opts.get(CONF_MQTT_PASSWORD, data.get(CONF_MQTT_PASSWORD, ""))
         current_tz = opts.get(CONF_TIMEZONE, data.get(CONF_TIMEZONE, DEFAULT_TIMEZONE))
         current_map_style = opts.get(CONF_MAP_STYLE, data.get(CONF_MAP_STYLE, DEFAULT_MAP_STYLE))
-        current_scan_interval = opts.get(CONF_SCAN_INTERVAL, data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL))
         current_rain_threshold = opts.get(CONF_RAIN_THRESHOLD, data.get(CONF_RAIN_THRESHOLD, DEFAULT_RAIN_THRESHOLD))
         current_hail_threshold = opts.get(CONF_HAIL_THRESHOLD, data.get(CONF_HAIL_THRESHOLD, DEFAULT_HAIL_THRESHOLD))
         current_dist_threshold = opts.get(CONF_DIST_THRESHOLD, data.get(CONF_DIST_THRESHOLD, DEFAULT_DIST_THRESHOLD))
@@ -220,8 +220,11 @@ class RainViewerOptionsFlow(config_entries.OptionsFlow):
                 ): vol.Coerce(float),
                 vol.Optional(
                     CONF_ZOOM,
-                    default=self._normalize_int(current_zoom, DEFAULT_ZOOM),
-                ): vol.All(vol.Coerce(int), vol.Range(min=1, max=18)),
+                    default=min(
+                        MAX_ZOOM,
+                        max(MIN_ZOOM, self._normalize_int(current_zoom, DEFAULT_ZOOM)),
+                    ),
+                ): vol.All(vol.Coerce(int), vol.Range(min=MIN_ZOOM, max=MAX_ZOOM)),
                 vol.Optional(
                     CONF_TILE_X,
                     default=self._normalize_int(current_tile_x, DEFAULT_TILE_X),
@@ -240,10 +243,6 @@ class RainViewerOptionsFlow(config_entries.OptionsFlow):
                 ): vol.All(vol.Coerce(int), vol.Range(min=1, max=65535)),
                 vol.Optional(CONF_MQTT_USERNAME, default=current_mqtt_username): str,
                 vol.Optional(CONF_MQTT_PASSWORD, default=current_mqtt_password): str,
-                vol.Optional(
-                    CONF_SCAN_INTERVAL,
-                    default=self._normalize_int(current_scan_interval, DEFAULT_SCAN_INTERVAL),
-                ): vol.All(vol.Coerce(int), vol.Range(min=30, max=3600)),
                 vol.Optional(
                     CONF_RAIN_THRESHOLD,
                     default=self._normalize_float(current_rain_threshold, DEFAULT_RAIN_THRESHOLD),
@@ -281,14 +280,15 @@ class RainViewerOptionsFlow(config_entries.OptionsFlow):
             schema = vol.Schema({
                 vol.Required(CONF_LATITUDE, default=self.hass.config.latitude): vol.Coerce(float),
                 vol.Required(CONF_LONGITUDE, default=self.hass.config.longitude): vol.Coerce(float),
-                vol.Optional(CONF_ZOOM, default=DEFAULT_ZOOM): vol.All(vol.Coerce(int), vol.Range(min=1, max=18)),
+                vol.Optional(CONF_ZOOM, default=DEFAULT_ZOOM): vol.All(
+                    vol.Coerce(int), vol.Range(min=MIN_ZOOM, max=MAX_ZOOM)
+                ),
                 vol.Optional(CONF_TILE_X, default=DEFAULT_TILE_X): vol.Coerce(int),
                 vol.Optional(CONF_TILE_Y, default=DEFAULT_TILE_Y): vol.Coerce(int),
                 vol.Optional(CONF_MQTT_BROKER, default=""): str,
                 vol.Optional(CONF_MQTT_PORT, default=DEFAULT_MQTT_PORT): vol.All(vol.Coerce(int), vol.Range(min=1, max=65535)),
                 vol.Optional(CONF_MQTT_USERNAME, default=""): str,
                 vol.Optional(CONF_MQTT_PASSWORD, default=""): str,
-                vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): vol.All(vol.Coerce(int), vol.Range(min=30, max=3600)),
                 vol.Optional(CONF_RAIN_THRESHOLD, default=DEFAULT_RAIN_THRESHOLD): vol.All(vol.Coerce(float), vol.Range(min=0.0, max=1.0)),
                 vol.Optional(CONF_HAIL_THRESHOLD, default=DEFAULT_HAIL_THRESHOLD): vol.All(vol.Coerce(float), vol.Range(min=0.0, max=1.0)),
                 vol.Optional(CONF_DIST_THRESHOLD, default=DEFAULT_DIST_THRESHOLD): vol.All(vol.Coerce(int), vol.Range(min=1, max=1000)),

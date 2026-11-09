@@ -11,7 +11,6 @@
           "mqtt_port": "MQTT Port",
           "mqtt_username": "MQTT Username (optional)",
           "mqtt_password": "MQTT Password (optional)",
-          "scan_interval": "Update interval (seconds)",
           "zoom": "Radar zoom level",
           "tile_x": "Radar Tile X",
           "tile_y": "Radar Tile Y",
@@ -39,7 +38,6 @@
       "init": {
         "title": "Radar options",
         "data": {
-          "scan_interval": "Update interval (seconds)",
           "rain_threshold": "Rain threshold",
           "hail_threshold": "Hail threshold",
           "dist_threshold": "Alert distance (km)",

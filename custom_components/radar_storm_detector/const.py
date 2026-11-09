@@ -8,7 +8,6 @@ CONF_MQTT_BROKER = "mqtt_broker"
 CONF_MQTT_PORT = "mqtt_port"
 CONF_MQTT_USERNAME = "mqtt_username"
 CONF_MQTT_PASSWORD = "mqtt_password"
-CONF_SCAN_INTERVAL = "scan_interval"
 CONF_ZOOM = "zoom"
 CONF_TILE_X = "tile_x"
 CONF_TILE_Y = "tile_y"
@@ -22,7 +21,9 @@ CONF_TIMEZONE = "timezone"
 
 # Defaults
 DEFAULT_MQTT_PORT = 1883
-DEFAULT_SCAN_INTERVAL = 600
+SCAN_INTERVAL_SECONDS = 600
+MIN_ZOOM = 1
+MAX_ZOOM = 7
 DEFAULT_ZOOM = 7
 DEFAULT_TILE_X = 28
 DEFAULT_TILE_Y = 54
@@ -38,7 +39,7 @@ DEFAULT_TIMEZONE = "GMT -6"
 # Base map styles (tile URL with placeholders {zoom}, {x}, {y})
 MAP_TILE_URLS = {
     "day":       "https://a.tile.openstreetmap.org/{zoom}/{x}/{y}.png",
-    "night":     "https://a.basemaps.cartocdn.com/dark_all/{zoom}/{x}/{y}.png",
+    "night":     "https://basemap.queeniemella.cc/tiles/countries/{zoom}/{x}/{y}.png",
     "satellite": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{zoom}/{y}/{x}",
 }
 MAP_STYLE_OPTIONS = ["day", "night", "satellite"]

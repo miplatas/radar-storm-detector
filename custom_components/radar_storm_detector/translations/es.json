@@ -11,7 +11,6 @@
           "mqtt_port": "Puerto MQTT",
           "mqtt_username": "Usuario MQTT (opcional)",
           "mqtt_password": "Contraseña MQTT (opcional)",
-          "scan_interval": "Intervalo de actualización (segundos)",
           "zoom": "Nivel de zoom del radar",
           "tile_x": "Tile X del radar",
           "tile_y": "Tile Y del radar",

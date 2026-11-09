@@ -13,6 +13,10 @@ from .const import (
     MQTT_TOPIC_STATUS,
     MQTT_TOPIC_ALERT,
     DEFAULT_FRAMES_N,
+    DEFAULT_ZOOM,
+    MIN_ZOOM,
+    MAX_ZOOM,
+    SCAN_INTERVAL_SECONDS,
 )
 from .radar import run_analysis
 
@@ -25,7 +29,10 @@ class RainViewerCoordinator(DataUpdateCoordinator):
     def __init__(self, hass: HomeAssistant, config: dict):
         self.lat = config["latitude"]
         self.lon = config["longitude"]
-        self.zoom = config.get("zoom", 7)
+        self.zoom = min(
+            MAX_ZOOM,
+            max(MIN_ZOOM, int(config.get("zoom", DEFAULT_ZOOM))),
+        )
         self.tile_x = config.get("tile_x", 28)
         self.tile_y = config.get("tile_y", 54)
         self.rain_threshold = config.get("rain_threshold", 0.005)
@@ -35,14 +42,13 @@ class RainViewerCoordinator(DataUpdateCoordinator):
         self.mqtt_port = config.get("mqtt_port", 1883)
         self.mqtt_user = config.get("mqtt_username", "")
         self.mqtt_pass = config.get("mqtt_password", "")
-        self.scan_interval = config.get("scan_interval", 300)
         self._mqtt_client = None
 
         super().__init__(
             hass,
             log,
             name=DOMAIN,
-            update_interval=timedelta(seconds=self.scan_interval),
+            update_interval=timedelta(seconds=SCAN_INTERVAL_SECONDS),
         )
 
     # ------------------------------------------------------------------
@@ -109,7 +115,7 @@ class RainViewerCoordinator(DataUpdateCoordinator):
                 self.rain_threshold,
                 self.hail_threshold,
                 self.dist_threshold,
-                self.scan_interval,
+                SCAN_INTERVAL_SECONDS,
             )
         except Exception as e:
             raise UpdateFailed(f"Error analyzing radar: {e}") from e

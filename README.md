@@ -3,7 +3,7 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/miplatas/time-spent-pie-card?display_name=tag)](https://github.com/miplatas/time-spent-pie-card/releases)
 [![GitHub last commit](https://img.shields.io/github/last-commit/miplatas/time-spent-pie-card)](https://github.com/miplatas/time-spent-pie-card/commits/main)
-[![PayPal](https://img.shields.io/badge/Donate-PayPal-00457C?logo=paypal&logoColor=white)](https://paypal.me/miplatas)
+[![Ko-Fi](https://img.shields.io/badge/Ko--fi-F16061?logo=ko-fi&logoColor=white)](https://ko-fi.com/miplatas)
 
 A Home Assistant integration that detects storm conditions using **RainViewer** radar images and automatically publishes data to **MQTT**.
 
@@ -90,14 +90,13 @@ In this specific example (`7/28/54.png`), the coordinates break down as follows:
 |---|---|---|
 | Latitude | Your location latitude | HA location |
 | Longitude | Your location longitude | HA location |
-| Zoom | Radar zoom level (1–18) | 7 |
+| Zoom | Radar zoom level (1–7) | 7 |
 | Tile X | Radar tile X (auto-calculated from lat/lon/zoom) | auto |
 | Tile Y | Radar tile Y (auto-calculated from lat/lon/zoom) | auto |
 | MQTT Broker | Broker IP or hostname | — |
 | MQTT Port | Broker port (1–65535) | 1883 |
 | MQTT Username | (optional) | — |
 | MQTT Password | (optional) | — |
-| Scan interval (s) | How often to analyze (30–3600) | 600 |
 | Rain threshold | Minimum pixel fraction for rain (0.0–1.0) | 0.005 |
 | Hail threshold | Minimum pixel fraction for hail (0.0–1.0) | 0.001 |
 | Alert distance | Maximum distance in kilometers for alert (1–1000) | 30 |
@@ -106,7 +105,7 @@ In this specific example (`7/28/54.png`), the coordinates break down as follows:
 | Timezone | Display timezone for the camera footer (GMT −12 to GMT +14) | GMT −6 |
 | Proximity circles | Draw diagnostic circles centered on your home marker to visualize distance bands used for storm proximity and bearing checks on the radar image | on |
 
-All options can be updated at any time from **Settings → Devices & Services → Radar Storm Detector → Configure** without restarting Home Assistant.
+The radar data is checked every 600 seconds. This interval is fixed and is not configurable. Other options can be updated at any time from **Settings → Devices & Services → Radar Storm Detector → Configure** without restarting Home Assistant.
 
 ---
 
@@ -135,7 +134,7 @@ All options can be updated at any time from **Settings → Devices & Services �
 
 | Entity | Description |
 |---|---|
-| `camera.radar_storm_detector_radar_image` | **Animated GIF**: OSM/Night/Satellite map + radar overlay + home marker + proximity circles (distance bands around home, enabled by default, useful to verify proximity and bearing logic) + dBZ legend + timestamp footer. Buffers the last 6 analyzed frames. Attributes: `history` (list of timestamps + URLs), `frames_in_buffer`. |
+| `camera.radar_storm_detector_radar_image` | **Animated GIF**: OSM/Night/Satellite map + radar overlay + home marker centered in the image + proximity circles (distance bands around home, enabled by default, useful to verify proximity and bearing logic) + dBZ legend + timestamp footer. Buffers the last 6 analyzed frames. Attributes: `history` (list of timestamps + URLs), `frames_in_buffer`. |
 | `camera.radar_storm_detector_radar_color_dbz` | **Static PNG**: Latest raw radar tile in original Radar Storm Detector colors with a dBZ scale bar on the right. |
 | `camera.radar_storm_detector_radar_dbz_grayscale` | **Static PNG**: Latest radar tile converted to grayscale proportional to dBZ intensity, with a grayscale dBZ scale bar on the right. |
 
@@ -208,12 +207,27 @@ automation:
 
 ## 📝 Alert levels
 
+Radar intensity is estimated from RainViewer pixel colors using the integration's dBZ lookup table. Approximate pixel classes are:
+
+| Radar class | Estimated intensity |
+|---|---|
+| Light | 15 to <30 dBZ |
+| Rain | 30 to <45 dBZ |
+| Heavy | 45 to <55 dBZ |
+| Hail | ≥55 dBZ (with an additional color-based hail heuristic) |
+
+Alerts are based on the fraction of pixels in the latest analyzed radar tile, not on a single pixel's dBZ alone:
+
 | Level | Condition |
 |---|---|
-| `none` | No significant precipitation |
-| `watch` | Moderate rain detected |
-| `warning` | Heavy rain or hail in the region |
-| `emergency` | Hail or heavy rain approaching your location |
+| `none` | Rain-plus-heavy coverage is at or below the rain threshold, and hail coverage is at or below the hail threshold. |
+| `watch` | Hail is below its threshold and either rain-plus-heavy coverage exceeds the rain threshold while heavy-rain coverage does not, or heavy-rain coverage exceeds the rain threshold but the representative precipitation area is not within the alert distance. |
+| `warning` | Hail coverage exceeds the hail threshold but the representative precipitation area is not within the alert distance; or heavy-rain coverage exceeds the rain threshold and that area is within the alert distance. |
+| `emergency` | Hail coverage exceeds the hail threshold and the representative precipitation area is within the alert distance. |
+
+Defaults are a **0.5%** rain threshold, **0.1%** hail threshold, and **30 km** alert distance. These thresholds can be changed in the integration options. The rain threshold is applied to rain-plus-heavy coverage and separately to heavy-rain coverage; the hail threshold applies to hail coverage. The distance comparison is strict (`<`): a storm exactly at the configured distance is treated as outside it.
+
+The distance used to choose between regional and nearby alert levels is measured to the nearest pixel in the representative precipitation area (pixels at or above the mean dBZ of detected precipitation). It is not necessarily the distance to the nearest hail or heavy-rain pixel specifically. `watch`/`warning`/`emergency` are heuristic levels from radar imagery, not official weather warnings.
 
 ---
 
@@ -222,8 +236,10 @@ automation:
 | Style | Tile source |
 |---|---|
 | `day` | OpenStreetMap (standard) |
-| `night` | CartoDB Dark Matter |
+| `night` | [Mella Basemap](https://basemap.queeniemella.cc/) (OpenStreetMap) |
 | `satellite` | ArcGIS World Imagery |
+
+The night map displays attribution to queeniemella and OpenStreetMap contributors.
 
 ---
 
