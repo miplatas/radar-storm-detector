@@ -24,7 +24,11 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
     DOMAIN,
-    DEFAULT_FRAMES_N,
+    CONF_HISTORY_HOURS,
+    DEFAULT_HISTORY_HOURS,
+    MIN_HISTORY_HOURS,
+    MAX_HISTORY_HOURS,
+    MAX_HISTORY_FRAMES,
     DEFAULT_ZOOM,
     MIN_ZOOM,
     MAX_ZOOM,
@@ -41,7 +45,6 @@ from .radar import build_dbz_array, _LUT_RGB
 
 log = logging.getLogger(__name__)
 
-HISTORY_SIZE = DEFAULT_FRAMES_N
 TILE_SIZE = 256
 IMAGE_CACHE_MAX_ITEMS = 24
 EARTH_RADIUS_M = 6378137.0
@@ -396,13 +399,20 @@ class RainViewerCamera(CoordinatorEntity, Camera):
 
         config = {**entry.data, **entry.options}
         self._gif_speed: int = config.get("gif_speed", DEFAULT_GIF_SPEED)
+        self._history_hours = min(
+            MAX_HISTORY_HOURS,
+            max(
+                MIN_HISTORY_HOURS,
+                int(config.get(CONF_HISTORY_HOURS, DEFAULT_HISTORY_HOURS)),
+            ),
+        )
         self._map_style: str = config.get(CONF_MAP_STYLE, DEFAULT_MAP_STYLE)
         self._draw_test_circles: bool = config.get(
             CONF_TEST_DRAW_PROXIMITY_CIRCLES,
             DEFAULT_TEST_DRAW_PROXIMITY_CIRCLES,
         )
 
-        self._history: deque[dict] = deque(maxlen=HISTORY_SIZE)
+        self._history: deque[dict] = deque(maxlen=MAX_HISTORY_FRAMES)
         self._lock = Lock()
         self._current_image: bytes | None = None
         self._last_render_url: str | None = None
@@ -429,6 +439,7 @@ class RainViewerCamera(CoordinatorEntity, Camera):
                 for f in self._history
             ],
             "frames_in_buffer": len(self._history),
+            "history_hours": self._history_hours,
         }
 
     def _handle_coordinator_update(self) -> None:
@@ -438,6 +449,13 @@ class RainViewerCamera(CoordinatorEntity, Camera):
 
         config = {**self._entry.data, **self._entry.options}
         self._gif_speed = config.get("gif_speed", DEFAULT_GIF_SPEED)
+        self._history_hours = min(
+            MAX_HISTORY_HOURS,
+            max(
+                MIN_HISTORY_HOURS,
+                int(config.get(CONF_HISTORY_HOURS, DEFAULT_HISTORY_HOURS)),
+            ),
+        )
         self._map_style = config.get(CONF_MAP_STYLE, DEFAULT_MAP_STYLE)
         self._draw_test_circles = config.get(
             CONF_TEST_DRAW_PROXIMITY_CIRCLES,
@@ -501,6 +519,10 @@ class RainViewerCamera(CoordinatorEntity, Camera):
                          lat: float, lon: float, zoom: int, frame_meta: dict) -> None:
         """Fetches base only if radar_url is new, then rebuilds GIF."""
         with self._lock:
+            cutoff = timestamp - self._history_hours * 3600
+            while self._history and self._history[0]["timestamp"] < cutoff:
+                old = self._history.popleft()
+                old["base_image"].close()
             already = any(f["radar_url"] == radar_url for f in self._history)
 
         if not already:
@@ -510,13 +532,9 @@ class RainViewerCamera(CoordinatorEntity, Camera):
             if base_img is None:
                 return
             with self._lock:
-                # If deque is full, close oldest image before discarding
-                if len(self._history) == HISTORY_SIZE:
-                    old = self._history[0]
-                    try:
-                        old["base_image"].close()
-                    except Exception:
-                        pass
+                if len(self._history) == MAX_HISTORY_FRAMES:
+                    old = self._history.popleft()
+                    old["base_image"].close()
                 self._history.append({
                     "timestamp":  timestamp,
                     "radar_url":  radar_url,
@@ -592,7 +610,7 @@ class RainViewerCamera(CoordinatorEntity, Camera):
 
         buf = io.BytesIO()
         durations = [self._gif_speed] * (len(pil_frames) - 1)
-        durations.append(self._gif_speed * 2)
+        durations.append(max(self._gif_speed * 2, 1000))
         pil_frames[0].save(
             buf, format="GIF", save_all=True,
             append_images=pil_frames[1:],

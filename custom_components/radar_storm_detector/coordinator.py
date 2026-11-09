@@ -12,7 +12,10 @@ from .const import (
     DOMAIN,
     MQTT_TOPIC_STATUS,
     MQTT_TOPIC_ALERT,
-    DEFAULT_FRAMES_N,
+    CONF_HISTORY_HOURS,
+    DEFAULT_HISTORY_HOURS,
+    MIN_HISTORY_HOURS,
+    MAX_HISTORY_HOURS,
     DEFAULT_ZOOM,
     MIN_ZOOM,
     MAX_ZOOM,
@@ -38,6 +41,13 @@ class RainViewerCoordinator(DataUpdateCoordinator):
         self.rain_threshold = config.get("rain_threshold", 0.005)
         self.hail_threshold = config.get("hail_threshold", 0.001)
         self.dist_threshold = config.get("dist_threshold", 30)
+        self.history_hours = min(
+            MAX_HISTORY_HOURS,
+            max(
+                MIN_HISTORY_HOURS,
+                int(config.get(CONF_HISTORY_HOURS, DEFAULT_HISTORY_HOURS)),
+            ),
+        )
         self.mqtt_broker = config.get("mqtt_broker")
         self.mqtt_port = config.get("mqtt_port", 1883)
         self.mqtt_user = config.get("mqtt_username", "")
@@ -111,7 +121,7 @@ class RainViewerCoordinator(DataUpdateCoordinator):
                 self.zoom,
                 self.tile_x,
                 self.tile_y,
-                DEFAULT_FRAMES_N,
+                self.history_hours,
                 self.rain_threshold,
                 self.hail_threshold,
                 self.dist_threshold,

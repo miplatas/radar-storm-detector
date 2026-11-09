@@ -20,6 +20,7 @@ from .const import (
     CONF_HAIL_THRESHOLD,
     CONF_DIST_THRESHOLD,
     CONF_GIF_SPEED,
+    CONF_HISTORY_HOURS,
     CONF_MAP_STYLE,
     CONF_TEST_DRAW_PROXIMITY_CIRCLES,
     CONF_TIMEZONE,
@@ -31,11 +32,14 @@ from .const import (
     DEFAULT_HAIL_THRESHOLD,
     DEFAULT_DIST_THRESHOLD,
     DEFAULT_GIF_SPEED,
+    DEFAULT_HISTORY_HOURS,
     DEFAULT_MAP_STYLE,
     DEFAULT_TEST_DRAW_PROXIMITY_CIRCLES,
     DEFAULT_TIMEZONE,
     MIN_ZOOM,
     MAX_ZOOM,
+    MIN_HISTORY_HOURS,
+    MAX_HISTORY_HOURS,
     MAP_STYLE_OPTIONS,
     TIMEZONE_OPTIONS,
 )
@@ -105,6 +109,13 @@ class RainViewerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             vol.Optional(CONF_HAIL_THRESHOLD, default=DEFAULT_HAIL_THRESHOLD): vol.All(vol.Coerce(float), vol.Range(min=0.0, max=1.0)),
             vol.Optional(CONF_DIST_THRESHOLD, default=DEFAULT_DIST_THRESHOLD): vol.All(vol.Coerce(int), vol.Range(min=1, max=1000)),
             vol.Optional(CONF_GIF_SPEED,      default=DEFAULT_GIF_SPEED):      vol.All(vol.Coerce(int), vol.Range(min=100, max=5000)),
+            vol.Optional(
+                CONF_HISTORY_HOURS,
+                default=DEFAULT_HISTORY_HOURS,
+            ): vol.All(
+                vol.Coerce(int),
+                vol.Range(min=MIN_HISTORY_HOURS, max=MAX_HISTORY_HOURS),
+            ),
             vol.Optional(CONF_MAP_STYLE,      default=DEFAULT_MAP_STYLE):      vol.In(MAP_STYLE_OPTIONS),
             vol.Optional(
                 CONF_TIMEZONE,
@@ -203,6 +214,10 @@ class RainViewerOptionsFlow(config_entries.OptionsFlow):
         current_hail_threshold = opts.get(CONF_HAIL_THRESHOLD, data.get(CONF_HAIL_THRESHOLD, DEFAULT_HAIL_THRESHOLD))
         current_dist_threshold = opts.get(CONF_DIST_THRESHOLD, data.get(CONF_DIST_THRESHOLD, DEFAULT_DIST_THRESHOLD))
         current_gif_speed = opts.get(CONF_GIF_SPEED, data.get(CONF_GIF_SPEED, DEFAULT_GIF_SPEED))
+        current_history_hours = opts.get(
+            CONF_HISTORY_HOURS,
+            data.get(CONF_HISTORY_HOURS, DEFAULT_HISTORY_HOURS),
+        )
         current_draw_circles = opts.get(
             CONF_TEST_DRAW_PROXIMITY_CIRCLES,
             data.get(CONF_TEST_DRAW_PROXIMITY_CIRCLES, DEFAULT_TEST_DRAW_PROXIMITY_CIRCLES),
@@ -260,6 +275,19 @@ class RainViewerOptionsFlow(config_entries.OptionsFlow):
                     default=self._normalize_int(current_gif_speed, DEFAULT_GIF_SPEED),
                 ): vol.All(vol.Coerce(int), vol.Range(min=100, max=5000)),
                 vol.Optional(
+                    CONF_HISTORY_HOURS,
+                    default=min(
+                        MAX_HISTORY_HOURS,
+                        max(
+                            MIN_HISTORY_HOURS,
+                            self._normalize_int(current_history_hours, DEFAULT_HISTORY_HOURS),
+                        ),
+                    ),
+                ): vol.All(
+                    vol.Coerce(int),
+                    vol.Range(min=MIN_HISTORY_HOURS, max=MAX_HISTORY_HOURS),
+                ),
+                vol.Optional(
                     CONF_MAP_STYLE,
                     default=self._normalize_map_style_option(current_map_style),
                 ): vol.In(MAP_STYLE_OPTIONS),
@@ -293,6 +321,13 @@ class RainViewerOptionsFlow(config_entries.OptionsFlow):
                 vol.Optional(CONF_HAIL_THRESHOLD, default=DEFAULT_HAIL_THRESHOLD): vol.All(vol.Coerce(float), vol.Range(min=0.0, max=1.0)),
                 vol.Optional(CONF_DIST_THRESHOLD, default=DEFAULT_DIST_THRESHOLD): vol.All(vol.Coerce(int), vol.Range(min=1, max=1000)),
                 vol.Optional(CONF_GIF_SPEED, default=DEFAULT_GIF_SPEED): vol.All(vol.Coerce(int), vol.Range(min=100, max=5000)),
+                vol.Optional(
+                    CONF_HISTORY_HOURS,
+                    default=DEFAULT_HISTORY_HOURS,
+                ): vol.All(
+                    vol.Coerce(int),
+                    vol.Range(min=MIN_HISTORY_HOURS, max=MAX_HISTORY_HOURS),
+                ),
                 vol.Optional(CONF_MAP_STYLE, default=DEFAULT_MAP_STYLE): vol.In(MAP_STYLE_OPTIONS),
                 vol.Optional(CONF_TIMEZONE, default=DEFAULT_TIMEZONE): vol.In(TIMEZONE_OPTIONS),
                 vol.Optional(

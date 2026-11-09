@@ -340,7 +340,7 @@ def determine_alert(rain_now, hail_now, heavy_now, distance, rain_trend,
     return "none", "No significant precipitation"
 
 
-def run_analysis(lat, lon, zoom, tile_x, tile_y, frames_n,
+def run_analysis(lat, lon, zoom, tile_x, tile_y, history_hours,
                  rain_threshold, hail_threshold, dist_threshold,
                  frame_interval_seconds=600):
     """
@@ -357,7 +357,18 @@ def run_analysis(lat, lon, zoom, tile_x, tile_y, frames_n,
 
     frames   = data["radar"]["past"]
     host     = data["host"]
-    selected = frames[-frames_n:]
+    if not frames:
+        log.warning("RainViewer API returned no past radar frames")
+        return None
+    latest_frame_time = frames[-1]["time"]
+    earliest_frame_time = latest_frame_time - history_hours * 3600
+    selected = [
+        frame for frame in frames
+        if earliest_frame_time <= frame["time"] <= latest_frame_time
+    ]
+    if not selected:
+        log.warning("No radar frames found in the configured %d-hour window", history_hours)
+        return None
 
     home_px = _lat_lon_to_pixel_in_tile(lat, lon, tile_x, tile_y, zoom)
     km_per_px = _km_per_pixel(lat, zoom)

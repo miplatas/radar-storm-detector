@@ -101,11 +101,12 @@ In this specific example (`7/28/54.png`), the coordinates break down as follows:
 | Hail threshold | Minimum pixel fraction for hail (0.0–1.0) | 0.001 |
 | Alert distance | Maximum distance in kilometers for alert (1–1000) | 30 |
 | GIF speed (ms) | Milliseconds per frame in the animated camera (100–5000) | 500 |
+| History duration (hours) | Radar analysis and animated camera history (1–2 hours) | 1 |
 | Map style | Base map: `day`, `night`, or `satellite` | day |
 | Timezone | Display timezone for the camera footer (GMT −12 to GMT +14) | GMT −6 |
 | Proximity circles | Draw diagnostic circles centered on your home marker to visualize distance bands used for storm proximity and bearing checks on the radar image | on |
 
-The radar data is checked every 600 seconds. This interval is fixed and is not configurable. Other options can be updated at any time from **Settings → Devices & Services → Radar Storm Detector → Configure** without restarting Home Assistant.
+The radar data is checked every 600 seconds. This interval is fixed and is not configurable. RainViewer provides up to 2 hours of past radar data in 10-minute steps (up to 13 frames). Selecting 1 hour analyzes up to 7 frames; selecting 2 hours analyzes up to 13, increasing per-update image-analysis work from the previous 6-frame default by up to about 2.2×. The camera keeps the chosen time window locally and fills it gradually after startup or an options change as new RainViewer frames become available. Other options can be updated at any time from **Settings → Devices & Services → Radar Storm Detector → Configure** without restarting Home Assistant.
 
 ---
 
@@ -134,7 +135,7 @@ The radar data is checked every 600 seconds. This interval is fixed and is not c
 
 | Entity | Description |
 |---|---|
-| `camera.radar_storm_detector_radar_image` | **Animated GIF**: OSM/Night/Satellite map + radar overlay + home marker centered in the image + proximity circles (distance bands around home, enabled by default, useful to verify proximity and bearing logic) + dBZ legend + timestamp footer. Buffers the last 6 analyzed frames. Attributes: `history` (list of timestamps + URLs), `frames_in_buffer`. |
+| `camera.radar_storm_detector_radar_image` | **Animated GIF**: OSM/Night/Satellite map + radar overlay + home marker centered in the image + proximity circles (distance bands around home, enabled by default, useful to verify proximity and bearing logic) + dBZ legend + timestamp footer. Buffers the configured 1–2 hours (up to 7/13 frames at 10-minute intervals); the history fills gradually after startup or an options change. Attributes: `history` (list of timestamps + URLs), `frames_in_buffer`, `history_hours`. |
 | `camera.radar_storm_detector_radar_color_dbz` | **Static PNG**: Latest raw radar tile in original Radar Storm Detector colors with a dBZ scale bar on the right. |
 | `camera.radar_storm_detector_radar_dbz_grayscale` | **Static PNG**: Latest radar tile converted to grayscale proportional to dBZ intensity, with a grayscale dBZ scale bar on the right. |
 

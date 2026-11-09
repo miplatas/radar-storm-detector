@@ -18,6 +18,7 @@
           "hail_threshold": "Umbral de granizo (fracción de píxeles)",
           "dist_threshold": "Distancia de alerta (km)",
           "gif_speed": "Velocidad del GIF (ms por frame)",
+          "history_hours": "Duración del historial de radar (horas, 1–2)",
           "map_style": "Estilo del mapa base",
           "timezone": "Offset de zona horaria (GMT)",
           "test_draw_proximity_circles": "Dibujar círculos de proximidad en GIF"
@@ -31,6 +32,23 @@
     },
     "abort": {
       "already_configured": "Radar ya está configurado"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opciones del radar",
+        "data": {
+          "rain_threshold": "Umbral de lluvia",
+          "hail_threshold": "Umbral de granizo",
+          "dist_threshold": "Distancia de alerta (km)",
+          "gif_speed": "Velocidad del GIF (ms por frame)",
+          "history_hours": "Duración del historial de radar (horas, 1–2)",
+          "map_style": "Estilo del mapa base",
+          "timezone": "Offset de zona horaria (GMT)",
+          "test_draw_proximity_circles": "Dibujar círculos de proximidad en GIF"
+        }
+      }
     }
   }
 }
