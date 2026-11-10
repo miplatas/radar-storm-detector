@@ -109,7 +109,7 @@ class RainViewerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             vol.Optional(CONF_HAIL_THRESHOLD, default=DEFAULT_HAIL_THRESHOLD): vol.All(vol.Coerce(float), vol.Range(min=0.0, max=1.0)),
             vol.Optional(CONF_DIST_THRESHOLD, default=DEFAULT_DIST_THRESHOLD): vol.All(vol.Coerce(int), vol.Range(min=1, max=1000)),
             vol.Optional(CONF_GIF_SPEED,      default=DEFAULT_GIF_SPEED):      vol.All(vol.Coerce(int), vol.Range(min=100, max=5000)),
-            vol.Optional(
+            vol.Required(
                 CONF_HISTORY_HOURS,
                 default=DEFAULT_HISTORY_HOURS,
             ): vol.All(
@@ -233,7 +233,7 @@ class RainViewerOptionsFlow(config_entries.OptionsFlow):
                     CONF_LONGITUDE,
                     default=self._normalize_float(current_longitude, self.hass.config.longitude),
                 ): vol.Coerce(float),
-                vol.Optional(
+                vol.Required(
                     CONF_ZOOM,
                     default=min(
                         MAX_ZOOM,
@@ -274,7 +274,7 @@ class RainViewerOptionsFlow(config_entries.OptionsFlow):
                     CONF_GIF_SPEED,
                     default=self._normalize_int(current_gif_speed, DEFAULT_GIF_SPEED),
                 ): vol.All(vol.Coerce(int), vol.Range(min=100, max=5000)),
-                vol.Optional(
+                vol.Required(
                     CONF_HISTORY_HOURS,
                     default=min(
                         MAX_HISTORY_HOURS,
@@ -308,7 +308,7 @@ class RainViewerOptionsFlow(config_entries.OptionsFlow):
             schema = vol.Schema({
                 vol.Required(CONF_LATITUDE, default=self.hass.config.latitude): vol.Coerce(float),
                 vol.Required(CONF_LONGITUDE, default=self.hass.config.longitude): vol.Coerce(float),
-                vol.Optional(CONF_ZOOM, default=DEFAULT_ZOOM): vol.All(
+                vol.Required(CONF_ZOOM, default=DEFAULT_ZOOM): vol.All(
                     vol.Coerce(int), vol.Range(min=MIN_ZOOM, max=MAX_ZOOM)
                 ),
                 vol.Optional(CONF_TILE_X, default=DEFAULT_TILE_X): vol.Coerce(int),
@@ -321,7 +321,7 @@ class RainViewerOptionsFlow(config_entries.OptionsFlow):
                 vol.Optional(CONF_HAIL_THRESHOLD, default=DEFAULT_HAIL_THRESHOLD): vol.All(vol.Coerce(float), vol.Range(min=0.0, max=1.0)),
                 vol.Optional(CONF_DIST_THRESHOLD, default=DEFAULT_DIST_THRESHOLD): vol.All(vol.Coerce(int), vol.Range(min=1, max=1000)),
                 vol.Optional(CONF_GIF_SPEED, default=DEFAULT_GIF_SPEED): vol.All(vol.Coerce(int), vol.Range(min=100, max=5000)),
-                vol.Optional(
+                vol.Required(
                     CONF_HISTORY_HOURS,
                     default=DEFAULT_HISTORY_HOURS,
                 ): vol.All(
